@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "KTVChallenge.Web": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:6354;http://localhost:6355"
+    }
+  }
+}

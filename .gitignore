@@ -1,0 +1,9 @@
+.vs/
+bin/
+obj/
+*.user
+*.rsuser
+*.suo
+*.nupkg
+*.DS_Store
+*.zip
