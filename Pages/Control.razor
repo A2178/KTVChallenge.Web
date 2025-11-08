@@ -7,30 +7,96 @@
     <button @onclick="StartSong">開始播放</button>
     <button @onclick="PauseSong">暫停</button>
     <button @onclick="EnterChallenge">進入挑戰（行 @currentIndex）</button>
+
+
     <div class="challenge-box">
         <label>挑戰者唱出的歌詞：</label>
         <input @bind="typed" placeholder="請逐字輸入" />
-        <button @onclick="RevealAndJudge">揭露原詞並判定</button>
+
+        <!-- ① 先把挑戰者唱詞顯示到舞台，不判定 -->
+        <button @onclick="PublishOnly">顯示到舞台</button>
+
+        <!-- ② 公布結果：判定 + 揭露原詞 -->
+        <button @onclick="RevealAndJudge">公布結果</button>
     </div>
+</div>
+
+<hr />
+
+<h3>挑戰與判定設定</h3>
+<div class="challenge-box">
+    <label>挑戰行（逗號分隔）</label>
+    <input @bind="linesText" placeholder="例如：3,6,10" style="width:200px" />
+    <button @onclick="ApplyLines">套用</button>
+    &nbsp;&nbsp;
+    <label>手動挑戰行</label>
+    <input type="number" style="width:80px" @bind="currentIndex" />
+    <button @onclick="EnterChallenge">進入挑戰（行 @currentIndex）</button>
+</div>
+
+<div class="challenge-box">
+    <label>判定模式</label>
+    <select @bind="mode">
+        <option>Strict</option>
+        <option selected>Loose</option>
+        <option>Fuzzy</option>
+    </select>
+    <label>模糊閾值</label>
+    <input type="number" min="0" max="10" @bind="fuzzy" style="width:80px" />
+    <button @onclick="ApplyMode">套用</button>
 </div>
 
 @code {
     string typed = "";
-    int currentIndex = 3; // 與 gamehub.js 的 challengeLines 對應
+    int currentIndex = 3;      // ← 會被 UI 綁定與 ApplyLines 更新
+    string linesText = "3";
+    string mode = "Loose";
+    int fuzzy = 2;
+
+
 
     async Task StartSong() => await JS.InvokeVoidAsync("GameHub.startSong", "demo");
     async Task PauseSong() => await JS.InvokeVoidAsync("GameHub.pause");
-    async Task EnterChallenge() => await JS.InvokeVoidAsync("GameHub.enterChallenge", currentIndex);
+    // ✅ 手動進挑戰時，一起帶原詞
+    async Task EnterChallenge()
+        => await JS.InvokeVoidAsync("GameHub.requestEnterChallenge", currentIndex);
 
-    static string Normalize(string s)
-        => new string((s ?? string.Empty).Normalize(System.Text.NormalizationForm.FormKC)
-            .Where(ch => !char.IsWhiteSpace(ch) && !char.IsPunctuation(ch))
-            .ToArray()).ToLowerInvariant();
+    async Task PublishOnly()
+    {
+        await JS.InvokeVoidAsync("GameHub.updateContestant", typed);  // 小畫面即時更新
+        await JS.InvokeVoidAsync("GameHub.publishContestant", typed); // 舞台顯示
+    }
 
+
+    // 改成請 Server 判定
+    // ② 公布結果：判定 + 揭露原詞
     async Task RevealAndJudge()
     {
         await JS.InvokeVoidAsync("GameHub.updateContestant", typed);
-        bool ok = !string.IsNullOrWhiteSpace(typed);
-        await JS.InvokeVoidAsync("GameHub.showResult", ok);
+        await JS.InvokeVoidAsync("GameHub.evaluate", typed);
+    }
+
+    async Task ApplyLines()
+    {
+        var arr = linesText.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                           .Select(s => int.TryParse(s, out var x) ? x : -1)
+                           .Where(x => x >= 0)
+                           .Distinct().OrderBy(x => x).ToArray();
+
+        await JS.InvokeVoidAsync("GameHub.setChallengeLines", arr);
+
+        // ✅ 以輸入的第一個挑戰行更新手動挑戰行預設
+        if (arr.Length > 0) currentIndex = arr[0];
+        StateHasChanged();
+    }
+
+    async Task ApplyMode()
+    {
+        await JS.InvokeVoidAsync("GameHub.setMatchMode", mode, fuzzy);
     }
 }
+<hr />
+<h3>目前原詞（除錯）</h3>
+<div id="debugOriginal" style="padding:.5rem; background:#fafafa; border:1px solid #eee; border-radius:.5rem;">
+    （等待進入挑戰…）
+</div>

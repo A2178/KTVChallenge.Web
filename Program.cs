@@ -1,4 +1,6 @@
 using KTVChallenge.Web.Hubs;
+using Microsoft.AspNetCore.StaticFiles;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +18,14 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+var provider = new FileExtensionContentTypeProvider();
+provider.Mappings[".lrc"] = "text/plain; charset=utf-8";
+
+// 服務 wwwroot 靜態檔，加入自訂 ContentTypeProvider
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = provider
+});
 app.UseRouting();
 
 app.MapBlazorHub();
