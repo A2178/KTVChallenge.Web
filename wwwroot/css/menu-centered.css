@@ -1,0 +1,211 @@
+﻿.page-title {
+    margin: 1.5rem 0 0.5rem;
+    text-align: center;
+    font-size: 1.9rem;
+    letter-spacing: .1rem;
+}
+
+.category-grid {
+    max-width: 980px;
+    margin: 1.2rem auto 2rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px 18px;
+    padding: 0 .8rem;
+}
+
+.category-pill {
+    display: block;
+    width: 100%;
+    padding: 16px 18px;
+    border-radius: 16px;
+    border: 2px solid #b65fcf;
+    background: #f7e9ff;
+    box-shadow: 0 2px 0 #d8b6e6 inset;
+    font-size: 1.05rem;
+    letter-spacing: .08rem;
+    cursor: pointer;
+    transition: transform .08s ease, box-shadow .12s ease, background .12s ease;
+}
+
+    .category-pill:hover {
+        transform: translateY(-2px);
+        background: #ffeefe;
+    }
+
+    .category-pill:active {
+        transform: translateY(0);
+        box-shadow: none;
+    }
+
+.category-header {
+    max-width: 980px;
+    margin: 1rem auto .5rem;
+    padding: 0 .8rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: flex-start;
+}
+
+    .category-header h2 {
+        margin: .2rem 0;
+    }
+
+.back-link {
+    background: transparent;
+    border: 0;
+    color: #7a38a3;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: .3rem .2rem;
+}
+
+    .back-link:hover {
+        text-decoration: underline;
+    }
+
+.song-grid {
+    max-width: 980px;
+    margin: .5rem auto 2rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px 16px;
+    padding: 0 .8rem;
+}
+
+.song-tile {
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    background: #fff;
+    padding: 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: box-shadow .12s ease, transform .08s ease;
+}
+
+    .song-tile:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0,0,0,.12);
+    }
+
+.song-name {
+    font-weight: 700;
+    margin-bottom: .25rem;
+}
+
+.song-artist {
+    color: #666;
+    font-size: .92rem;
+}
+
+.empty-note {
+    text-align: center;
+    color: #777;
+    margin-top: 1rem;
+}
+.category-grid-2col {
+    max-width: 980px;
+    margin: 1.2rem auto 2rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
+    gap: 14px 18px;
+    padding: 0 .8rem;
+}
+
+.category-pill {
+    display: block;
+    width: 100%;
+    padding: 16px 18px;
+    border-radius: 16px;
+    border: 2px solid #b65fcf;
+    background: #f7e9ff;
+    box-shadow: 0 2px 0 #d8b6e6 inset;
+    font-size: 1.05rem;
+    letter-spacing: .08rem;
+    text-align: center;
+    cursor: pointer;
+    transition: transform .08s ease, box-shadow .12s ease, background .12s ease;
+}
+
+    .category-pill:hover {
+        transform: translateY(-2px);
+        background: #ffeefe;
+    }
+
+    .category-pill:active {
+        transform: translateY(0);
+        box-shadow: none;
+    }
+
+    /* 第一顆（30萬大驚喜）橫跨整列 */
+    .category-pill.first {
+        grid-column: 1 / -1;
+        font-weight: 700;
+        font-size: 1.15rem;
+    }
+
+/* 兩欄網格：第一、九項要吃兩格 */
+.category-grid-2col {
+    max-width: 980px;
+    margin: 1.2rem auto 2rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
+    gap: 14px 18px;
+    padding: 0 .8rem;
+}
+
+.category-pill {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .6rem;
+    width: 100%;
+    padding: 16px 18px;
+    border-radius: 16px;
+    border: 2px solid #b65fcf;
+    background: #f7e9ff;
+    box-shadow: 0 2px 0 #d8b6e6 inset;
+    font-size: 1.05rem;
+    letter-spacing: .08rem;
+    cursor: pointer;
+    text-align: center;
+    transition: transform .08s ease, box-shadow .12s ease, background .12s ease;
+}
+
+    .category-pill:hover {
+        transform: translateY(-2px);
+        background: #ffeefe;
+    }
+
+    .category-pill:active {
+        transform: translateY(0);
+        box-shadow: none;
+    }
+
+    /* 橫跨兩格（桌面版） */
+    .category-pill.span-2 {
+        grid-column: 1 / -1;
+        font-weight: 700;
+    }
+
+    /* 編號徽章（可選，像你的示意圖） */
+    .category-pill .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        background: #5aa2ff;
+        color: #fff;
+        font-weight: 700;
+        font-size: .9rem;
+    }
+
+/* 手機斷點：本來就單欄，span-2 無效果也沒關係 */
+@media (max-width: 680px) {
+    .category-grid-2col {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,82 +1,126 @@
 ﻿@page "/menu"
+@page "/menu/{CategoryParam}"
 @inject NavigationManager Nav
+@inject HttpClient Http
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Components
+
 
 <h1 class="page-title">歌曲選單</h1>
 
-<div class="menu-layout">
-    <!-- 左側分類目錄 -->
-    <aside class="sidebar">
-        <h3>年代分類</h3>
-        <ul>
-            @foreach (var cat in Categories)
-            {
-                <li class="@((cat == currentCategory ? "active" : ""))" @onclick="() => SelectCategory(cat)">
-                    @cat
-                </li>
-            }
-        </ul>
-    </aside>
-
-    <!-- 右側歌曲列表 -->
-    <main class="content">
-        <h2>@currentCategory</h2>
-
-        @if (SongsByCategory.TryGetValue(currentCategory, out var songs))
+@if (string.IsNullOrEmpty(SelectedCategory))
+{
+    <!-- 目錄頁：第一個大卡，底下兩個一列 -->
+    <div class="category-grid-2col">
+        @for (int i = 0; i < FixedCategories.Count; i++)
         {
-            <div class="song-grid">
-                @foreach (var song in songs)
-                {
-                    <div class="song-tile" @onclick="() => PlaySong(song.Id)">
-                        <div class="song-name">@song.Name</div>
-                        <div class="song-artist">@song.Artist</div>
-                    </div>
-                }
-            </div>
+            var cat = FixedCategories[i];
+            var isSpan2 = (i == 0 || i == 9);
+            var classes = isSpan2 ? "category-pill span-2" : "category-pill";
+
+            <button class="@classes" @onclick="() => GoCategory(cat)">
+                @* 可選：左邊加編號徽章 *@
+                <span class="badge">@((i + 1).ToString())</span>
+                <span>@cat</span>
+            </button>
+        }
+    </div>
+}
+else
+{
+    <!-- 類別歌曲清單（原樣） -->
+    <div class="category-header">
+        <button class="back-link" @onclick="GoBack">← 返回目錄</button>
+        <h2>@SelectedCategory</h2>
+    </div>
+
+    @if (SongsByCategory.TryGetValue(SelectedCategory, out var songs) && songs.Any())
+    {
+        <div class="song-grid">
+            @foreach (var s in songs)
+            {
+                <div class="song-tile" @onclick="() => PlaySong(s.Id)">
+                    <div class="song-name">@s.Name</div>
+                    <div class="song-artist">@s.Artist</div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <p class="empty-note">此分類暫無歌曲。</p>
+    }
+}
+
+
+
+@code {
+    [Parameter] public string? CategoryParam { get; set; }
+
+    // ✅ 固定目錄（寫死順序）：第一個會是大卡
+    private readonly List<string> FixedCategories = new()
+    {
+        "黃金旋律・80年代經典金曲",
+        "青春記憶・90年代熱唱時光",
+        "華語盛世・2000年代KTV必點",
+        "流行新聲・2010年代音浪再起",
+        "未來之聲・2020年代夯曲登場",
+        "團體金曲・合唱最強戰隊",
+        "偶像劇金曲・回憶殺來襲",
+        "經典對唱・你唱我和愛無限",
+        "搖滾時刻・熱血沸騰能量爆發",
+        "尾牙壓軸・幸福大合唱"
+    };
+
+    private class SongItem
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Artist { get; set; } = "";
+        public bool HasLrc { get; set; }
+    }
+
+    private Dictionary<string, List<SongItem>> SongsByCategory
+        = new(StringComparer.OrdinalIgnoreCase);
+    private string SelectedCategory = "";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (SongsByCategory.Count == 0)
+        {
+            try
+            {
+                var data = await Http.GetFromJsonAsync<Dictionary<string, List<SongItem>>>("/api/songs")
+                           ?? new(StringComparer.OrdinalIgnoreCase);
+
+                // 確保固定目錄至少都存在 key（沒歌也能點進去）
+                foreach (var cat in FixedCategories)
+                    if (!data.ContainsKey(cat)) data[cat] = new List<SongItem>();
+
+                SongsByCategory = new(data, StringComparer.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                // API 出錯時也能顯示目錄
+                SongsByCategory = FixedCategories.ToDictionary(c => c, _ => new List<SongItem>(),
+                    StringComparer.OrdinalIgnoreCase);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(CategoryParam))
+        {
+            var cat = Uri.UnescapeDataString(CategoryParam);
+            SelectedCategory = SongsByCategory.Keys
+                .FirstOrDefault(k => string.Equals(k, cat, StringComparison.CurrentCultureIgnoreCase))
+                ?? cat;
         }
         else
         {
-            <p>此分類暫無歌曲。</p>
+            SelectedCategory = "";
         }
-    </main>
-</div>
-
-@code {
-    record SongItem(string Id, string Name, string Artist);
-
-    // 可依實際歌曲調整這些假資料
-    Dictionary<string, List<SongItem>> SongsByCategory = new()
-    {
-        ["90年代歌曲"] = new()
-        {
-            new("90_001", "童年", "羅大佑"),
-            new("90_002", "心太軟", "任賢齊"),
-            new("90_003", "愛江山更愛美人", "李麗芬"),
-        },
-        ["2000年代歌曲"] = new()
-        {
-            new("00_001", "那些年", "胡夏"),
-            new("00_002", "七里香", "周杰倫"),
-            new("00_003", "會呼吸的痛", "梁靜茹"),
-        },
-        ["2020年代歌曲"] = new()
-        {
-            new("20_001", "刻在我心底的名字", "盧廣仲"),
-            new("20_002", "想見你想見你想見你", "八三夭"),
-        }
-    };
-
-    List<string> Categories => SongsByCategory.Keys.ToList();
-
-    string currentCategory = "90年代歌曲"; // 預設分類
-
-    void SelectCategory(string cat)
-    {
-        currentCategory = cat;
     }
 
-    void PlaySong(string songId)
-    {
-        // 跳轉到舞台頁並指定歌曲
-        Nav.NavigateTo($"/host?songId={songId}");
-    }
+    void GoCategory(string cat) => Nav.NavigateTo($"/menu/{Uri.EscapeDataString(cat)}");
+    void GoBack() => Nav.NavigateTo("/menu");
+    void PlaySong(string songId) => Nav.NavigateTo($"/host?songId={Uri.EscapeDataString(songId)}");
 }
