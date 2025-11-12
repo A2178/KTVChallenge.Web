@@ -16,7 +16,8 @@
 
 
     function loadLrcForSong(songId) {
-        const lrcPath = `/lrc/${songId}.lrc`;
+        const base = window.MEDIA_BASE_URL || "/";
+        const lrcPath = `${base}lrc/${songId}.lrc`;
         fetch(lrcPath).then(r => {
             if (!r.ok) throw new Error(`LRC not found: ${lrcPath} (${r.status})`);
             return r.text();
@@ -101,9 +102,13 @@
         safeText($("status"), "播放中：" + songId);
         const player = $("player");
         if (player) {
-            isStarting = true;          // ✅ 設定為「正在啟播」
+            // ✅ 動態設定音檔來源（可支援相對路徑或 CDN）
+            const base = window.MEDIA_BASE_URL || "/";    // 下面第2點會說明
+            player.src = `${base}audio/${songId}.mp3`;
+            player.load();
+
             player.play().catch(() => { });
-            loadLrcForSong(songId);     // ← 用 songId 載對應 LRC
+            loadLrcForSong(songId); // 載入對應 LRC
         }
     }
 

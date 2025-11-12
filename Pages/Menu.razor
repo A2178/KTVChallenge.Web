@@ -1,0 +1,82 @@
+﻿@page "/menu"
+@inject NavigationManager Nav
+
+<h1 class="page-title">歌曲選單</h1>
+
+<div class="menu-layout">
+    <!-- 左側分類目錄 -->
+    <aside class="sidebar">
+        <h3>年代分類</h3>
+        <ul>
+            @foreach (var cat in Categories)
+            {
+                <li class="@((cat == currentCategory ? "active" : ""))" @onclick="() => SelectCategory(cat)">
+                    @cat
+                </li>
+            }
+        </ul>
+    </aside>
+
+    <!-- 右側歌曲列表 -->
+    <main class="content">
+        <h2>@currentCategory</h2>
+
+        @if (SongsByCategory.TryGetValue(currentCategory, out var songs))
+        {
+            <div class="song-grid">
+                @foreach (var song in songs)
+                {
+                    <div class="song-tile" @onclick="() => PlaySong(song.Id)">
+                        <div class="song-name">@song.Name</div>
+                        <div class="song-artist">@song.Artist</div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <p>此分類暫無歌曲。</p>
+        }
+    </main>
+</div>
+
+@code {
+    record SongItem(string Id, string Name, string Artist);
+
+    // 可依實際歌曲調整這些假資料
+    Dictionary<string, List<SongItem>> SongsByCategory = new()
+    {
+        ["90年代歌曲"] = new()
+        {
+            new("90_001", "童年", "羅大佑"),
+            new("90_002", "心太軟", "任賢齊"),
+            new("90_003", "愛江山更愛美人", "李麗芬"),
+        },
+        ["2000年代歌曲"] = new()
+        {
+            new("00_001", "那些年", "胡夏"),
+            new("00_002", "七里香", "周杰倫"),
+            new("00_003", "會呼吸的痛", "梁靜茹"),
+        },
+        ["2020年代歌曲"] = new()
+        {
+            new("20_001", "刻在我心底的名字", "盧廣仲"),
+            new("20_002", "想見你想見你想見你", "八三夭"),
+        }
+    };
+
+    List<string> Categories => SongsByCategory.Keys.ToList();
+
+    string currentCategory = "90年代歌曲"; // 預設分類
+
+    void SelectCategory(string cat)
+    {
+        currentCategory = cat;
+    }
+
+    void PlaySong(string songId)
+    {
+        // 跳轉到舞台頁並指定歌曲
+        Nav.NavigateTo($"/host?songId={songId}");
+    }
+}

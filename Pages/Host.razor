@@ -1,22 +1,29 @@
 @page "/host"
+@inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <h1>舞台畫面</h1>
 
-<div id="status" class="badge">待命</div>
+<!-- 原本內容不動 -->
+<audio id="player" controls></audio>
 
-<div class="lyrics">
-    <div id="currentLine" class="line highlight">（當前歌詞會顯示在這裡）</div>
-    <div id="challengeMask" class="line mask" style="display:none;">＊＊＊＊＊＊＊＊＊＊＊＊＊＊</div>
-    <div id="contestantLine" class="line typed" style="display:none;">（挑戰者唱出的歌詞）</div>
-</div>
-
-<audio id="player" controls>
-    <source src="audio/demo.mp3" type="audio/mpeg">
-</audio>
-
-<div id="result" class="result"></div>
-
-<p class="hint">
-    已加入 <b>LRC 歌詞同步</b>：放置 <code>wwwroot/lrc/demo.lrc</code> 後，播放時會自動高亮當前行；
-    若當前行索引位於 <code>challengeLines</code> 設定，則會自動進入挑戰模式並暫停。
-</p>
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // 從 URL 拿 ?songId=xxx
+            var uri = Nav.ToAbsoluteUri(Nav.Uri);
+            if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query)
+                .TryGetValue("songId", out var songId))
+            {
+                await JS.InvokeVoidAsync("GameHub.startSong", songId.ToString());
+            }
+            else
+            {
+                // 沒指定就播 demo
+                await JS.InvokeVoidAsync("GameHub.startSong", "demo");
+            }
+        }
+    }
+}
