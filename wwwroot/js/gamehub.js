@@ -3,7 +3,18 @@
     let started = false;
 
     function $(id) { return document.getElementById(id); }
-    function safeText(el, text) { if (el) el.textContent = text; }
+    function safeText(el, text) {
+        if (!el) return;
+        el.textContent = text;
+
+        // 只對主要歌詞與挑戰者歌詞做淡入效果
+        if (el.id === "currentLine" || el.id === "contestantLine" || el.classList?.contains("lyric-main")) {
+            el.classList.remove("fade-text");   // 讓動畫可以重播
+            // 強制重繪（重置動畫）
+            void el.offsetWidth;
+            el.classList.add("fade-text");
+        }
+    }
 
     // ---- LRC Sync State ----
     let lrcEntries = [];           // [{time, text}]
@@ -16,33 +27,27 @@
 
 
     function loadLrcForSong(songId) {
-        const base = window.MEDIA_BASE_URL || "/";
-        const lrcPath = `/media/lrc/${songId}.lrc`;
-        fetch(lrcPath).then(r => {
-            if (!r.ok) throw new Error(`LRC not found: ${lrcPath} (${r.status})`);
-            return r.text();
-        }).then(text => {
-            lrcEntries = (window.LrcHelper && window.LrcHelper.parseLrc)
-                ? window.LrcHelper.parseLrc(text) : [];
-            currentIdx = -1;
-            triggered.clear();
-            lrcReady = true;                           // ✅ 標記已就緒
-            if (pendingChallenge != null) {
-                if (!isStarting) {
-                    const i = pendingChallenge | 0;
-                    const line = lrcEntries[i]?.text || "";
-                    connection.invoke("EnterChallenge", i, line).catch(() => { });
-                }
+        const lrcPath = "/media/lrc/" + encodeURI(songId) + ".lrc";
+        fetch(lrcPath)
+            .then(r => {
+                if (!r.ok) throw new Error(`LRC not found: ${lrcPath} (${r.status})`);
+                return r.text();
+            })
+            .then(text => {
+                lrcEntries = (window.LrcHelper && window.LrcHelper.parseLrc)
+                    ? window.LrcHelper.parseLrc(text) : [];
+                currentIdx = -1;
+                triggered.clear();
+                lrcReady = true;
                 pendingChallenge = null;
-            }
-            isStarting = false;  // ✅ 播放階段結束（之後可正常挑戰）
-            safeText($("currentLine"), lrcEntries.length ? "（已載入 LRC，等候播放進度…）" : "（LRC 無內容）");
-        }).catch(err => {
-            lrcEntries = [];
-            lrcReady = false;
-            safeText($("currentLine"), `（讀取 LRC 失敗：${err.message}）`);
-            console.error(err);
-        });
+                safeText($("currentLine"), lrcEntries.length ? "（已載入 LRC，等候播放進度…）" : "（LRC 無內容）");
+            })
+            .catch(err => {
+                lrcEntries = [];
+                lrcReady = false;
+                safeText($("currentLine"), `（讀取 LRC 失敗：${err.message}）`);
+                console.error(err);
+            });
     }
 
     function onTimeUpdate() {
@@ -99,14 +104,14 @@
     }
 
     function onSongStarted(songId) {
+        // songId 形如：類別/歌手_歌名
         safeText($("status"), "播放中：" + songId);
         const player = $("player");
         if (player) {
-            // 取代原本 demo 固定路徑
-            player.src = `/media/audio/${songId}.mp3`;
-            player.load();
+            const src = "/media/audio/" + encodeURI(songId) + ".mp3";
+            player.src = src;
             player.play().catch(() => { });
-            loadLrcForSong(songId);
+            loadLrcForSong(songId); // 讀取對應 LRC
         }
     }
 

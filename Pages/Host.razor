@@ -2,10 +2,44 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
-<h1>舞台畫面</h1>
+<div class="host-background">
+    <div class="stage-wrapper">
+        <h1 class="stage-title">舞台畫面</h1>
 
-<!-- 原本內容不動 -->
-<audio id="player" controls></audio>
+        <!-- 播放器可以縮在上方角落 -->
+        <div class="stage-player">
+            <audio id="player" controls></audio>
+        </div>
+
+        <!-- 狀態列：顯示目前「播放中 / 挑戰模式 / 暫停」 -->
+        <div id="status" class="stage-status">
+            等待歌曲開始…
+        </div>
+
+        <!-- 歌詞主區塊 -->
+        <div class="lyric-panel">
+            <!-- 被遮罩的原詞（星號） -->
+            <div id="challengeMask" class="lyric-mask" style="display:none;">
+                ＊＊＊＊
+            </div>
+
+            <!-- 主要滾動歌詞（會淡入） -->
+            <div id="currentLine" class="lyric-main">
+                （前奏中…）
+            </div>
+
+            <!-- 挑戰者唱出的歌詞 -->
+            <div id="contestantLine" class="lyric-contestant" style="display:none;">
+                <!-- 內容由 JS 寫入 -->
+            </div>
+
+            <!-- 判定結果：成功 / 失敗 + 正確歌詞 / 參賽者歌詞 -->
+            <div id="result" class="lyric-result">
+                <!-- 內容由 JS 寫入 -->
+            </div>
+        </div>
+    </div>
+</div>
 
 @code {
     protected override async Task OnAfterRenderAsync(bool firstRender)

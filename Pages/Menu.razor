@@ -1,25 +1,26 @@
 ﻿@page "/menu"
 @page "/menu/{CategoryParam}"
 @inject NavigationManager Nav
-@inject HttpClient Http
-@using System.Net.Http.Json
+@inject IWebHostEnvironment Env
+@using System.IO
+@using System.Linq
 @using Microsoft.AspNetCore.Components
 
+<div class="menu-background">
 
 <h1 class="page-title">歌曲選單</h1>
 
 @if (string.IsNullOrEmpty(SelectedCategory))
 {
-    <!-- 目錄頁：第一個大卡，底下兩個一列 -->
+    <!-- 目錄頁：第一個 & 第十個佔兩格 -->
     <div class="category-grid-2col">
         @for (int i = 0; i < FixedCategories.Count; i++)
         {
             var cat = FixedCategories[i];
-            var isSpan2 = (i == 0 || i == 9);
+            var isSpan2 = (i == 0 || i == 9);            // 第 1、10 個佔兩格
             var classes = isSpan2 ? "category-pill span-2" : "category-pill";
 
             <button class="@classes" @onclick="() => GoCategory(cat)">
-                @* 可選：左邊加編號徽章 *@
                 <span class="badge">@((i + 1).ToString())</span>
                 <span>@cat</span>
             </button>
@@ -28,7 +29,7 @@
 }
 else
 {
-    <!-- 類別歌曲清單（原樣） -->
+    <!-- 類別歌曲清單 -->
     <div class="category-header">
         <button class="back-link" @onclick="GoBack">← 返回目錄</button>
         <h2>@SelectedCategory</h2>
@@ -39,7 +40,8 @@ else
         <div class="song-grid">
             @foreach (var s in songs)
             {
-                <div class="song-tile" @onclick="() => PlaySong(s.Id)">
+                <div class="song-tile" title="@(s.HasLrc ? "含 LRC" : "無 LRC")"
+                     @onclick="() => PlaySong(s.Id)">
                     <div class="song-name">@s.Name</div>
                     <div class="song-artist">@s.Artist</div>
                 </div>
@@ -52,19 +54,17 @@ else
     }
 }
 
-
-
 @code {
     [Parameter] public string? CategoryParam { get; set; }
 
-    // ✅ 固定目錄（寫死順序）：第一個會是大卡
+    // ✅ 固定目錄（名稱要與 media/audio 的子資料夾一致）
     private readonly List<string> FixedCategories = new()
     {
         "黃金旋律・80年代經典金曲",
         "青春記憶・90年代熱唱時光",
         "華語盛世・2000年代KTV必點",
         "流行新聲・2010年代音浪再起",
-        "未來之聲・2020年代夯曲登場",
+        "未來之聲・2020年代勁曲登場",
         "團體金曲・合唱最強戰隊",
         "偶像劇金曲・回憶殺來襲",
         "經典對唱・你唱我和愛無限",
@@ -74,37 +74,23 @@ else
 
     private class SongItem
     {
-        public string Id { get; set; } = "";
-        public string Name { get; set; } = "";
-        public string Artist { get; set; } = "";
-        public bool HasLrc { get; set; }
+        public string Id { get; set; } = "";     // "<類別>/<歌手_歌名>"
+        public string Name { get; set; } = "";   // 歌名
+        public string Artist { get; set; } = ""; // 歌手
+        public bool HasLrc { get; set; }         // 是否存在對應 .lrc
     }
 
-    private Dictionary<string, List<SongItem>> SongsByCategory
-        = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<SongItem>> SongsByCategory =
+        new(StringComparer.OrdinalIgnoreCase);
+
     private string SelectedCategory = "";
 
-    protected override async Task OnParametersSetAsync()
+    protected override void OnParametersSet()
     {
+        // 第一次進來就掃描 media 目錄
         if (SongsByCategory.Count == 0)
         {
-            try
-            {
-                var data = await Http.GetFromJsonAsync<Dictionary<string, List<SongItem>>>("/api/songs")
-                           ?? new(StringComparer.OrdinalIgnoreCase);
-
-                // 確保固定目錄至少都存在 key（沒歌也能點進去）
-                foreach (var cat in FixedCategories)
-                    if (!data.ContainsKey(cat)) data[cat] = new List<SongItem>();
-
-                SongsByCategory = new(data, StringComparer.OrdinalIgnoreCase);
-            }
-            catch
-            {
-                // API 出錯時也能顯示目錄
-                SongsByCategory = FixedCategories.ToDictionary(c => c, _ => new List<SongItem>(),
-                    StringComparer.OrdinalIgnoreCase);
-            }
+            LoadAllSongsFromMedia();
         }
 
         if (!string.IsNullOrEmpty(CategoryParam))
@@ -120,7 +106,67 @@ else
         }
     }
 
-    void GoCategory(string cat) => Nav.NavigateTo($"/menu/{Uri.EscapeDataString(cat)}");
+    private void LoadAllSongsFromMedia()
+    {
+        SongsByCategory.Clear();
+
+        var contentRoot = Env.ContentRootPath;
+        var audioRoot = Path.Combine(contentRoot, "media", "audio");
+        var lrcRoot = Path.Combine(contentRoot, "media", "lrc");
+
+        // 確保固定目錄即使沒有檔案也能點進去
+        foreach (var cat in FixedCategories)
+            SongsByCategory[cat] = new List<SongItem>();
+
+        if (!Directory.Exists(audioRoot)) return;
+
+        foreach (var cat in FixedCategories)
+        {
+            var catAudioDir = Path.Combine(audioRoot, cat);
+            if (!Directory.Exists(catAudioDir)) continue;
+
+            var list = new List<SongItem>();
+
+            foreach (var mp3Path in Directory.EnumerateFiles(catAudioDir, "*.mp3"))
+            {
+                var slug = Path.GetFileNameWithoutExtension(mp3Path);   // 歌手_歌名
+                var (artist, title) = SplitArtistTitle(slug);
+
+                var lrcPath = Path.Combine(lrcRoot, cat, slug + ".lrc");
+                var item = new SongItem
+                {
+                    Id = $"{cat}/{slug}",
+                    Name = title,
+                    Artist = artist,
+                    HasLrc = File.Exists(lrcPath)
+                };
+                list.Add(item);
+            }
+
+            // 可自訂排序：歌手->歌名
+            list = list
+                .OrderBy(s => s.Artist, StringComparer.CurrentCulture)
+                .ThenBy(s => s.Name, StringComparer.CurrentCulture)
+                .ToList();
+
+            SongsByCategory[cat] = list;
+        }
+    }
+
+    private static (string Artist, string Title) SplitArtistTitle(string slug)
+    {
+        // 規範：{歌手}_{歌名}.mp3/.lrc
+        var parts = slug.Split('_', 2);
+        return parts.Length == 2 ? (parts[0], parts[1]) : ("", slug);
+    }
+
+    void GoCategory(string cat) =>
+        Nav.NavigateTo($"/menu/{Uri.EscapeDataString(cat)}");
+
     void GoBack() => Nav.NavigateTo("/menu");
-    void PlaySong(string songId) => Nav.NavigateTo($"/host?songId={Uri.EscapeDataString(songId)}");
+
+    void PlaySong(string songId) =>
+        Nav.NavigateTo($"/host?songId={Uri.EscapeDataString(songId)}");
 }
+
+</div>
