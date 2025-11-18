@@ -7,10 +7,8 @@
         if (!el) return;
         el.textContent = text;
 
-        // 只對主要歌詞與挑戰者歌詞做淡入效果
         if (el.id === "currentLine" || el.id === "contestantLine" || el.classList?.contains("lyric-main")) {
-            el.classList.remove("fade-text");   // 讓動畫可以重播
-            // 強制重繪（重置動畫）
+            el.classList.remove("fade-text");
             void el.offsetWidth;
             el.classList.add("fade-text");
         }
@@ -19,11 +17,33 @@
     // ---- LRC Sync State ----
     let lrcEntries = [];           // [{time, text}]
     let currentIdx = -1;
-    const challengeLines = [3];    // 修改成你要的挑戰行（0-based）
-    const triggered = new Set();   // 已觸發過挑戰的行
+    const challengeLines = [3];
+    const triggered = new Set();
     let lrcReady = false;
     let pendingChallenge = null;
-    let isStarting = false;        // ✅ 新增旗標：正在啟播階段
+    let isStarting = false;
+    let currentSongId = null;
+
+    // ✅ 新增：舞台目前是否在「挑戰模式中」
+    let inChallenge = false;
+
+    function updateDebugOriginalFromChallenge() {
+        const dbg = document.getElementById("debugOriginal");
+        if (!dbg) return;
+
+        if (!Array.isArray(challengeLines) || challengeLines.length === 0) {
+            dbg.textContent = "（尚未設定挑戰行）";
+            return;
+        }
+        if (!lrcReady || !Array.isArray(lrcEntries) || lrcEntries.length === 0) {
+            dbg.textContent = "（等待歌曲歌詞載入…）";
+            return;
+        }
+
+        const idx = challengeLines[0];    // 0-based
+        const line = lrcEntries[idx]?.text;
+        dbg.textContent = line || "（此行無歌詞或超出範圍）";
+    }
 
 
     function loadLrcForSong(songId) {
@@ -41,6 +61,7 @@
                 lrcReady = true;
                 pendingChallenge = null;
                 safeText($("currentLine"), lrcEntries.length ? "（已載入 LRC，等候播放進度…）" : "（LRC 無內容）");
+                updateDebugOriginalFromChallenge();
             })
             .catch(err => {
                 lrcEntries = [];
@@ -54,6 +75,8 @@
         const player = $("player");
         if (!player || lrcEntries.length === 0) return;
         const t = player.currentTime;
+
+        if (inChallenge) return;
 
         // ---- 新增：如果還沒到第一個時間標籤，先顯示提示（或顯示第一行內容）----
         if (lrcEntries.length > 0 && t < lrcEntries[0].time) {
@@ -104,14 +127,15 @@
     }
 
     function onSongStarted(songId) {
-        // songId 形如：類別/歌手_歌名
         safeText($("status"), "播放中：" + songId);
-        const player = $("player");
+
+        ensurePlayerEvents();   // ✅ 確保已經綁上 timeupdate
+
         if (player) {
             const src = "/media/audio/" + encodeURI(songId) + ".mp3";
             player.src = src;
             player.play().catch(() => { });
-            loadLrcForSong(songId); // 讀取對應 LRC
+            loadLrcForSong(songId);
         }
     }
 
@@ -131,17 +155,35 @@
         if ($("result")) $("result").textContent = ok ? "🎉 恭喜過關！" : "💥 失敗，返回選單";
     }
 
-    const player = $("player");
-    if (player) {
-        player.addEventListener("timeupdate", onTimeUpdate);
-        player.addEventListener("seeked", () => { currentIdx = -1; onTimeUpdate(); });
-        player.addEventListener("loadedmetadata", () => { currentIdx = -1; });
+    let player = null;
+
+    function ensurePlayerEvents() {
+        const el = $("player");
+        if (!el || el._lrcBound) return;
+
+        // 歌詞同步相關
+        el.addEventListener("timeupdate", onTimeUpdate);
+        el.addEventListener("seeked", () => { currentIdx = -1; onTimeUpdate(); });
+        el.addEventListener("loadedmetadata", () => { currentIdx = -1; });
+
+        // ✅ 新增：挑戰模式中禁止手動播放
+        el.addEventListener("play", () => {
+            if (inChallenge) {
+                // 挑戰中有人手動按播放，就立刻暫停
+                el.pause();
+            }
+        });
+
+        el._lrcBound = true;
+        player = el;
     }
 
     // 接收：進入挑戰（含原詞）
     connection.on("EnterChallenge", (lineIndex, originalText) => {
         const player = $("player");
         if (player) player.pause();
+
+        inChallenge = true;  // ✅ 標記為挑戰模式中
 
         if ($("challengeMask")) {
             const mask = (window.LrcHelper && window.LrcHelper.starMaskFor)
@@ -152,10 +194,10 @@
         }
         if ($("contestantLine")) $("contestantLine").style.display = "block";
 
-        safeText($("status"), `挑戰模式（第 ${lineIndex} 行）`);
+        // ✅ 顯示給人看的行數 = index + 1
+        safeText($("status"), `挑戰模式（第 ${lineIndex + 1} 行）`);
         safeText($("currentLine"), "（原詞已遮罩）");
 
-        // ✅ 控制台上顯示「目前原詞（除錯）」
         const dbg = document.getElementById("debugOriginal");
         if (dbg) dbg.textContent = originalText || "(目前行無原詞 / 手動未帶入)";
     });
@@ -177,6 +219,8 @@
     connection.on("Paused", onPaused);
     connection.on("ContestantUpdated", onContestantUpdated);
     connection.on("ShowResult", (ok, originalText, contestantText) => {
+        // ✅ 離開挑戰模式
+        inChallenge = false;
         if ($("challengeMask")) $("challengeMask").style.display = "none";
 
         const current = $("currentLine");
@@ -203,6 +247,16 @@
         connection.invoke("EnterChallenge", i, line).catch(() => { });
     });
 
+    connection.on("CurrentSongChanged", (songId) => {
+        currentSongId = songId || null;
+        const st = $("status");
+        if (st) {
+            st.textContent = currentSongId
+                ? ("已選擇歌曲：" + currentSongId)
+                : "尚未選擇歌曲";
+        }
+    });
+
 
     // 簡單跳脫 HTML（避免輸入造成 XSS）
     function escapeHtml(s) {
@@ -216,7 +270,8 @@
             challengeLines.length = 0;
             lines.forEach(x => challengeLines.push(x | 0));
         }
-        // 也可把 mode / threshold 顯示在畫面上（可選）
+        // ✅ 挑戰行 / 模式更新後，嘗試預覽原詞
+        updateDebugOriginalFromChallenge();
     });
 
     async function start() {
@@ -232,24 +287,15 @@
     start();
 
     window.GameHub = {
-        startSong: (id) => started && connection.invoke("StartSong", id),
+        startSong: () => started && connection.invoke("StartSong"),
         pause: () => started && connection.invoke("Pause"),
-        enterChallengeWithOriginal: (idx) => {
-            if (!started) return;
-            const line = (Array.isArray(lrcEntries) && lrcEntries[idx]) ? lrcEntries[idx].text : null;
-            connection.invoke("EnterChallenge", idx | 0, line).catch(() => { });
-        },
+
         requestEnterChallenge: (idx) => started && connection.invoke("RequestEnterChallenge", idx | 0),
-        enterChallenge: (idx) => started && connection.invoke("EnterChallenge", idx, null), // 手動進挑戰如果沒原詞就傳 null
+
         updateContestant: (text) => started && connection.invoke("UpdateContestant", text),
-
-        // ✅ 新增：只把參賽者的詞顯示到舞台（不判定）
         publishContestant: (text) => started && connection.invoke("PublishContestant", text),
-
-        // 新增：請 Server 判定
         evaluate: (text) => started && connection.invoke("Evaluate", text),
 
-        // 新增：控制台可調整挑戰行/模式
         setChallengeLines: (arr) => started && connection.invoke("SetChallengeLines", arr),
         setMatchMode: (mode, threshold) => started && connection.invoke("SetMatchMode", mode, threshold)
     };

@@ -6,58 +6,60 @@
     <div class="stage-wrapper">
         <h1 class="stage-title">舞台畫面</h1>
 
-        <!-- 播放器可以縮在上方角落 -->
         <div class="stage-player">
             <audio id="player" controls></audio>
         </div>
 
-        <!-- 狀態列：顯示目前「播放中 / 挑戰模式 / 暫停」 -->
         <div id="status" class="stage-status">
-            等待歌曲開始…
+            等待選擇歌曲…
         </div>
 
-        <!-- 歌詞主區塊 -->
         <div class="lyric-panel">
-            <!-- 被遮罩的原詞（星號） -->
+            <!-- 遮罩星號（隱藏歌詞行） -->
             <div id="challengeMask" class="lyric-mask" style="display:none;">
-                ＊＊＊＊
+                ★★★★
             </div>
 
-            <!-- 主要滾動歌詞（會淡入） -->
+            <!-- 主要滾動歌詞 -->
             <div id="currentLine" class="lyric-main">
-                （前奏中…）
+                （尚未開始播放）
             </div>
 
             <!-- 挑戰者唱出的歌詞 -->
             <div id="contestantLine" class="lyric-contestant" style="display:none;">
-                <!-- 內容由 JS 寫入 -->
             </div>
 
-            <!-- 判定結果：成功 / 失敗 + 正確歌詞 / 參賽者歌詞 -->
+            <!-- 判定結果 -->
             <div id="result" class="lyric-result">
-                <!-- 內容由 JS 寫入 -->
             </div>
         </div>
     </div>
 </div>
 
 @code {
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnParametersSet()
     {
-        if (firstRender)
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        if (Microsoft.AspNetCore.WebUtilities.QueryHelpers
+            .ParseQuery(uri.Query)
+            .TryGetValue("songId", out var songId))
         {
-            // 從 URL 拿 ?songId=xxx
-            var uri = Nav.ToAbsoluteUri(Nav.Uri);
-            if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query)
-                .TryGetValue("songId", out var songId))
-            {
-                await JS.InvokeVoidAsync("GameHub.startSong", songId.ToString());
-            }
-            else
-            {
-                // 沒指定就播 demo
-                await JS.InvokeVoidAsync("GameHub.startSong", "demo");
-            }
+            // 先把 query string 裡的編碼解開
+            var encoded = songId.ToString();
+            var decoded = Uri.UnescapeDataString(encoded);
+
+            KTVChallenge.Web.Hubs.GameSession.CurrentSong = decoded;
+        }
+        else
+        {
+            KTVChallenge.Web.Hubs.GameSession.CurrentSong = "";
         }
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // 這裡就不用再呼叫 JS 了，保持空白即可
+        await Task.CompletedTask;
+    }
 }
+
