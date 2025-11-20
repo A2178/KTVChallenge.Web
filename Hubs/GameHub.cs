@@ -9,11 +9,17 @@ public class GameHub : Hub
     private static readonly GameState State = new();
 
     // ===== 控制台：設定挑戰行 =====
-    public async Task SetChallengeLines(int[] lines)
+    // 單一挑戰行（0-based）
+    public async Task SetChallengeLine(int line)
     {
-        State.ChallengeLines = lines?.Distinct().OrderBy(x => x).ToArray() ?? Array.Empty<int>();
-        await Clients.All.SendAsync("ChallengeConfigUpdated", State.ChallengeLines, State.Mode.ToString(), State.FuzzyThreshold);
+        State.ChallengeLine = line;
+        await Clients.All.SendAsync(
+            "ChallengeConfigUpdated",
+            State.ChallengeLine,          // ? 傳單一 int
+            State.Mode.ToString(),
+            State.FuzzyThreshold);
     }
+
 
     // ===== 控制台：設定比對模式 =====
     public async Task SetMatchMode(string mode, int? fuzzyThreshold)
@@ -24,8 +30,19 @@ public class GameHub : Hub
         if (fuzzyThreshold is >= 0 and <= 10)
             State.FuzzyThreshold = fuzzyThreshold.Value;
 
-        await Clients.All.SendAsync("ChallengeConfigUpdated", State.ChallengeLines, State.Mode.ToString(), State.FuzzyThreshold);
+        await Clients.All.SendAsync(
+            "ChallengeConfigUpdated",
+            State.ChallengeLine,          // ? 不再是陣列
+            State.Mode.ToString(),
+            State.FuzzyThreshold);
     }
+
+    public Task<string> GetCurrentSong()
+    {
+        // 這裡用你原本 StartSong 裡用的 GameSession.CurrentSong
+        return Task.FromResult(GameSession.CurrentSong ?? string.Empty);
+    }
+
 
 
     // ===== 控制台：開始 / 暫停 =====
@@ -137,7 +154,9 @@ public class GameHub : Hub
 
 public class GameState
 {
-    public int[] ChallengeLines { get; set; } = Array.Empty<int>();
+    // ? 單一挑戰行，0-based，-1 表示尚未設定
+    public int ChallengeLine { get; set; } = -1;
+
     public MatchMode Mode { get; set; } = MatchMode.Loose;
     public int FuzzyThreshold { get; set; } = 2;
 

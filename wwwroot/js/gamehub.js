@@ -17,7 +17,7 @@
     // ---- LRC Sync State ----
     let lrcEntries = [];           // [{time, text}]
     let currentIdx = -1;
-    const challengeLines = [3];
+    let challengeLine = -1;
     const triggered = new Set();
     let lrcReady = false;
     let pendingChallenge = null;
@@ -31,7 +31,7 @@
         const dbg = document.getElementById("debugOriginal");
         if (!dbg) return;
 
-        if (!Array.isArray(challengeLines) || challengeLines.length === 0) {
+        if (challengeLine < 0) {
             dbg.textContent = "（尚未設定挑戰行）";
             return;
         }
@@ -40,15 +40,16 @@
             return;
         }
 
-        const idx = challengeLines[0];    // 0-based
+        const idx = challengeLine;               // 這裡就是 0-based 的行號
         const line = lrcEntries[idx]?.text;
         dbg.textContent = line || "（此行無歌詞或超出範圍）";
     }
 
 
+
     function loadLrcForSong(songId) {
         const lrcPath = "/media/lrc/" + encodeURI(songId) + ".lrc";
-        fetch(lrcPath)
+        return fetch(lrcPath)                     // ←★ 多了這個 return
             .then(r => {
                 if (!r.ok) throw new Error(`LRC not found: ${lrcPath} (${r.status})`);
                 return r.text();
@@ -61,6 +62,7 @@
                 lrcReady = true;
                 pendingChallenge = null;
                 safeText($("currentLine"), lrcEntries.length ? "（已載入 LRC，等候播放進度…）" : "（LRC 無內容）");
+
                 updateDebugOriginalFromChallenge();
             })
             .catch(err => {
@@ -70,6 +72,7 @@
                 console.error(err);
             });
     }
+
 
     function onTimeUpdate() {
         const player = $("player");
@@ -94,10 +97,9 @@
                 const line = lrcEntries[currentIdx].text;
                 safeText($("currentLine"), line);
 
-                if (challengeLines.includes(currentIdx) && !triggered.has(currentIdx)) {
+                if (currentIdx === challengeLine && !triggered.has(currentIdx)) {
                     triggered.add(currentIdx);
                     if (started) {
-                        // 進入挑戰時把原詞一起送到 Server
                         connection.invoke("EnterChallenge", currentIdx, line).catch(() => { });
                     }
                 }
@@ -255,7 +257,17 @@
                 ? ("已選擇歌曲：" + currentSongId)
                 : "尚未選擇歌曲";
         }
+
+        // ★ 新增：在收到「選好歌曲」的事件時，就把 LRC 先載入
+        // 這樣控制台按「設定本次挑戰行」時，updateDebugOriginalFromChallenge()
+        // 就已經有 lrcEntries 可以查，會立刻顯示那一行歌詞
+        if (currentSongId && !lrcReady) {
+            loadLrcForSong(currentSongId);
+        }
     });
+
+
+
 
 
     // 簡單跳脫 HTML（避免輸入造成 XSS）
@@ -264,13 +276,9 @@
     }
 
 
-    connection.on("ChallengeConfigUpdated", (lines, mode, threshold) => {
-        // 讓舞台也更新自動觸發的行
-        if (Array.isArray(lines)) {
-            challengeLines.length = 0;
-            lines.forEach(x => challengeLines.push(x | 0));
-        }
-        // ✅ 挑戰行 / 模式更新後，嘗試預覽原詞
+    connection.on("ChallengeConfigUpdated", (line, mode, threshold) => {
+        // line 可能是 null/undefined，保險起見轉成整數
+        challengeLine = (line ?? -1) | 0;
         updateDebugOriginalFromChallenge();
     });
 
@@ -278,13 +286,33 @@
         try {
             await connection.start();
             started = true;
-            if ($("status")) $("status").textContent = "連線成功（待命）";
+
+            // ★ 新增：連線成功後，問伺服器「目前是哪一首歌」
+            try {
+                const songId = await connection.invoke("GetCurrentSong");
+                if (songId) {
+                    currentSongId = songId;
+                    // 立刻載入對應 LRC，載完之後 loadLrcForSong 會呼叫
+                    // updateDebugOriginalFromChallenge()，把那一行歌詞秀出來
+                    loadLrcForSong(songId);
+                }
+            } catch (e) {
+                console.warn("GetCurrentSong failed:", e);
+            }
+
+            const st = $("status");
+            if (st) {
+                st.textContent = currentSongId
+                    ? ("已選擇歌曲：" + currentSongId)
+                    : "連線成功（待命）";
+            }
         } catch (e) {
             console.warn("SignalR connect failed, retrying...", e);
             setTimeout(start, 1000);
         }
     }
     start();
+
 
     window.GameHub = {
         startSong: () => started && connection.invoke("StartSong"),
@@ -296,7 +324,31 @@
         publishContestant: (text) => started && connection.invoke("PublishContestant", text),
         evaluate: (text) => started && connection.invoke("Evaluate", text),
 
-        setChallengeLines: (arr) => started && connection.invoke("SetChallengeLines", arr),
+        // ★ 這裡整個替換掉
+        setChallengeLine: async (line) => {
+            if (!started) return;
+
+            // 1. 先告訴伺服器目前挑戰行（會觸發 ChallengeConfigUpdated -> 設定 challengeLine）
+            await connection.invoke("SetChallengeLine", line);
+
+            // 2. 如果這一邊還沒載入 LRC，就再問一次目前是哪首歌，然後強制載入 LRC
+            try {
+                if (!lrcReady) {
+                    const songId = await connection.invoke("GetCurrentSong");
+                    if (songId) {
+                        currentSongId = songId;
+                        await loadLrcForSong(songId);  // 讀完時會順便呼叫 updateDebugOriginalFromChallenge()
+                    }
+                }
+            } catch (e) {
+                console.warn("setChallengeLine GetCurrentSong failed", e);
+            }
+
+            // 3. 無論如何再手動刷新一次顯示
+            updateDebugOriginalFromChallenge();
+        },
+
         setMatchMode: (mode, threshold) => started && connection.invoke("SetMatchMode", mode, threshold)
     };
+
 })();
