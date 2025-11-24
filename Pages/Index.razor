@@ -1,3 +1,18 @@
 @page "/"
-<h1>KTV Lyric Challenge</h1>
-<p>請從上方選擇 <a href="/host">舞台</a> 或 <a href="/control">控制台</a>。</p>
+@inject NavigationManager Nav
+
+<div class="hero-container">
+
+    <div class="hero-content">
+        <h1 class="hero-title">12/3尾牙主題：中和音浪齊發・盛世樂章榮耀開唱」</h1>
+
+        <button class="hero-button" @onclick="GoMenu">
+            🎤 進入百萬大歌星
+        </button>
+    </div>
+
+</div>
+
+@code {
+    void GoMenu() => Nav.NavigateTo("/menu");
+}

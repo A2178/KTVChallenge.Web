@@ -43,6 +43,13 @@ public class GameHub : Hub
         return Task.FromResult(GameSession.CurrentSong ?? string.Empty);
     }
 
+    public async Task ResumeSong()
+    {
+        // 如果你有分組，就改成 Clients.Group("host") 之類；
+        // 如果目前都是 broadcast，就先用 All 沒關係
+        await Clients.All.SendAsync("ResumeSong");
+    }
+
 
 
     // ===== 控制台：開始 / 暫停 =====

@@ -8,7 +8,7 @@
 
 <div class="menu-background">
 
-<h1 class="page-title">歌曲選單</h1>
+    <h1 class="page-title" style="color:white; text-shadow: 0 2px 4px rgba(0,0,0,.6); font-size:32px;">歌曲選單</h1>
 
 @if (string.IsNullOrEmpty(SelectedCategory))
 {
@@ -28,31 +28,38 @@
     </div>
 }
 else
-{
-    <!-- 類別歌曲清單 -->
-    <div class="category-header">
-        <button class="back-link" @onclick="GoBack">← 返回目錄</button>
-        <h2>@SelectedCategory</h2>
-    </div>
+    {
+        <!-- 類別歌曲清單 -->
+        <div class="category-header">
+            @* 這個舊的返回按鈕先拿掉 *@
+            @* <button class="back-link" @onclick="GoBack">← 返回目錄</button> *@
 
-    @if (SongsByCategory.TryGetValue(SelectedCategory, out var songs) && songs.Any())
-    {
-        <div class="song-grid">
-            @foreach (var s in songs)
-            {
-                <div class="song-tile" title="@(s.HasLrc ? "含 LRC" : "無 LRC")"
-                     @onclick="() => PlaySong(s.Id)">
-                    <div class="song-name">@s.Name</div>
-                    <div class="song-artist">@s.Artist</div>
-                </div>
-            }
+            <h1 style="text-shadow: 1px 1px 4px black; color:white;">@SelectedCategory</h1>
         </div>
+
+        @if (SongsByCategory.TryGetValue(SelectedCategory, out var songs) && songs.Any())
+        {
+            <div class="song-grid">
+                @foreach (var s in songs)
+                {
+                    <div class="song-title" title="@(s.HasLrc ? "含 LRC" : "無 LRC")"
+                         @onclick="() => PlaySong(s.Id)">
+                        <div class="song-name">@s.Name</div>
+                        <div class="song-artist">@s.Artist</div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="empty-note">此分類暫無歌曲。</p>
+        }
+
+        <!-- ★ 新增：右下角「返回目錄」按鈕（只有進到類別時才會有） -->
+        <button class="menu-exit-button" @onclick="GoBack">
+            返回目錄
+        </button>
     }
-    else
-    {
-        <p class="empty-note">此分類暫無歌曲。</p>
-    }
-}
 
 @code {
     [Parameter] public string? CategoryParam { get; set; }
@@ -60,13 +67,13 @@ else
     // ✅ 固定目錄（名稱要與 media/audio 的子資料夾一致）
     private readonly List<string> FixedCategories = new()
     {
-        "黃金旋律・80年代經典金曲",
-        "青春記憶・90年代熱唱時光",
-        "華語盛世・2000年代KTV必點",
-        "流行新聲・2010年代音浪再起",
-        "未來之聲・2020年代勁曲登場",
+        "老歌回味・經典不敗金曲",
+        "青春記憶・必唱青春旋律",
+        "華語盛世・KTV必點周董神曲",
+        "流行新聲・抒情歌挑戰",
+        "台語金曲・經典好歌永流傳",
         "團體金曲・合唱最強戰隊",
-        "偶像劇金曲・回憶殺來襲",
+        "台語人氣・現代新派必唱曲",
         "經典對唱・你唱我和愛無限",
         "搖滾時刻・熱血沸騰能量爆發",
         "尾牙壓軸・幸福大合唱"

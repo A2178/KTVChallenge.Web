@@ -23,7 +23,10 @@
     let pendingChallenge = null;
     let isStarting = false;
     let currentSongId = null;
-
+    let failEffectPlayed = false;
+    let exitBtnTimer = null;
+    // ✅ 新增：記住這次挑戰的原始歌詞
+    let currentOriginalText = "";
     // ✅ 新增：舞台目前是否在「挑戰模式中」
     let inChallenge = false;
 
@@ -49,7 +52,7 @@
 
     function loadLrcForSong(songId) {
         const lrcPath = "/media/lrc/" + encodeURI(songId) + ".lrc";
-        return fetch(lrcPath)                     // ←★ 多了這個 return
+        return fetch(lrcPath, { cache: "no-store" })                     // ←★ 多了這個 return
             .then(r => {
                 if (!r.ok) throw new Error(`LRC not found: ${lrcPath} (${r.status})`);
                 return r.text();
@@ -61,9 +64,10 @@
                 triggered.clear();
                 lrcReady = true;
                 pendingChallenge = null;
-                safeText($("currentLine"), lrcEntries.length ? "（已載入 LRC，等候播放進度…）" : "（LRC 無內容）");
+                safeText($("currentLine"), lrcEntries.length ? "（已載入歌詞，等候播放進度…）" : "（歌詞目前無內容）");
 
                 updateDebugOriginalFromChallenge();
+                updatePreAlert();
             })
             .catch(err => {
                 lrcEntries = [];
@@ -104,6 +108,7 @@
                     }
                 }
             }
+            updatePreAlert();
         }
         if (currentIdx !== i) {
             console.debug("[LRC] line ->", i, lrcEntries[i]?.text);
@@ -180,41 +185,121 @@
         player = el;
     }
 
+    function updatePreAlert() {
+        const alertEl = $("preAlert");
+        if (!alertEl) return;
+
+        // 尚未載入 LRC 或尚未設定挑戰行，直接關閉提醒
+        if (!lrcReady || challengeLine < 0 || currentIdx < 0 || inChallenge) {
+            alertEl.classList.remove("show-alert");
+            return;
+        }
+
+        // 提前幾行開始提醒（現在是 2 行）
+        const warnOffset = 2;
+        const warnIndex = challengeLine - warnOffset;
+
+        // 避免負數，若挑戰行太前面就不提醒
+        if (warnIndex < 0) {
+            alertEl.classList.remove("show-alert");
+            return;
+        }
+
+        // 只要介於 warnIndex ~ (challengeLine-1) 之間就開始閃爍
+        if (currentIdx >= warnIndex && currentIdx < challengeLine) {
+            alertEl.classList.add("show-alert");
+        } else {
+            alertEl.classList.remove("show-alert");
+        }
+    }
+
     // 接收：進入挑戰（含原詞）
     connection.on("EnterChallenge", (lineIndex, originalText) => {
+
+        // 暫停音樂
         const player = $("player");
         if (player) player.pause();
 
-        inChallenge = true;  // ✅ 標記為挑戰模式中
+        // 進入挑戰模式
+        inChallenge = true;
 
-        if ($("challengeMask")) {
+        // 關閉提前提醒用的閃爍圖片
+        const alertEl = $("preAlert");
+        if (alertEl) alertEl.classList.remove("show-alert");
+
+        // ★★ 保存原始歌詞，供之後「部分揭露 + 補星號」使用
+        currentOriginalText = originalText || "";
+
+        // 顯示星號遮罩（原詞全部轉成星號）
+        const maskEl = $("challengeMask");
+        if (maskEl) {
             const mask = (window.LrcHelper && window.LrcHelper.starMaskFor)
-                ? window.LrcHelper.starMaskFor(originalText || "")
+                ? window.LrcHelper.starMaskFor(currentOriginalText)
                 : "＊＊＊＊";
-            $("challengeMask").style.display = "block";
-            safeText($("challengeMask"), mask);
+            maskEl.style.display = "block";
+            safeText(maskEl, mask);
         }
-        if ($("contestantLine")) $("contestantLine").style.display = "block";
 
-        // ✅ 顯示給人看的行數 = index + 1
+
+        // 不再使用小行 contestantLine
+        const contestantEl = $("contestantLine");
+        if (contestantEl) {
+            contestantEl.style.display = "none";
+            contestantEl.textContent = "";
+        }
+
+        // 更新狀態顯示：挑戰模式（第 n 行）
         safeText($("status"), `挑戰模式（第 ${lineIndex + 1} 行）`);
-        safeText($("currentLine"), "（原詞已遮罩）");
 
+        // ★ 挑戰開始時，大字幕清空（等待控制台輸入）
+        safeText($("currentLine"), "");
+
+        // ★★ 保存原始歌詞（舞台 + 控制台共用）
+        window.currentChallengeOriginal = originalText || window.currentChallengeOriginal || "";
+
+        // Debug 區：只有在有原詞的情況下才更新，避免蓋掉舊內容
         const dbg = document.getElementById("debugOriginal");
-        if (dbg) dbg.textContent = originalText || "(目前行無原詞 / 手動未帶入)";
+        if (dbg && window.currentChallengeOriginal) {
+            dbg.textContent = window.currentChallengeOriginal;
+        }
     });
+
+
 
     // ✅ 舞台顯示挑戰者唱詞（不判定）
-    connection.on("ShowContestantText", (text) => {
-        const el = $("result");
-        if (el) {
-            el.innerHTML = "挑戰者唱出：" + escapeHtml(text || "");
-        }
-        if ($("contestantLine")) {
-            safeText($("contestantLine"), text || "");
-        }
-    });
+    connection.on("ShowContestantText", (typed) => {
+        const currentLineEl = $("currentLine");
+        const maskEl = $("challengeMask");
+        const ori = window.currentChallengeOriginal || "";
 
+        if (!currentLineEl) return;
+
+        // 如果根本沒有原始歌詞，就直接秀輸入內容
+        if (!ori) {
+            safeText(currentLineEl, typed || "");
+            if (maskEl) maskEl.style.display = "none";
+            return;
+        }
+
+        const typedText = typed || "";
+        const totalLen = ori.length;
+        const typedLen = typedText.length;
+
+        // 已揭露的部分 = 原詞前 typedLen 個字（超過就吃滿）
+        const revealCount = Math.min(typedLen, totalLen);
+        const front = ori.slice(0, revealCount);
+
+        // 剩餘幾個字就補幾個星號
+        const remainCount = Math.max(totalLen - revealCount, 0);
+        const stars = "★".repeat(remainCount);
+
+        const display = front + stars;
+
+        safeText(currentLineEl, display);
+
+        // 挑戰進行中就把上面那條星號遮罩關掉
+        if (maskEl) maskEl.style.display = "none";
+    });
 
 
     connection.on("SongStarted", onSongStarted);
@@ -227,14 +312,60 @@
 
         const current = $("currentLine");
         if (current) {
-            current.innerHTML = (ok ? "✅ " : "❌ ") + (ok ? "挑戰成功" : "挑戰失敗")
+            current.innerHTML = (ok ? "✅ " : "❌ ")
+                + (ok ? "挑戰成功" : "挑戰失敗")
                 + "<br/>正確歌詞：" + escapeHtml(originalText || "");
         }
 
         const result = $("result");
         if (result) {
-            result.innerHTML = (ok ? "🎉 過關" : "💥 失敗，返回選單")
+            result.innerHTML = (ok ? "🎉 成功！" : "💥 失敗")
                 + "<br/>挑戰者唱出：" + escapeHtml(contestantText || "");
+        }
+
+        // ★★★ 新增：全畫面 GIF + 音效 5 秒 ★★★
+        const overlay = $("resultOverlay");
+        const gif = $("resultGif");
+        const sfx = $(ok ? "sfxSuccess" : "sfxFail");
+
+        if (overlay && gif) {
+            // 依照成功 / 失敗切換不同 GIF
+            gif.src = ok ? "/images/success.gif" : "/images/fail.gif";
+
+            // 顯示覆蓋層（淡入效果由 CSS 控制）
+            overlay.classList.add("show");
+
+            // 播放音效
+            if (sfx) {
+                sfx.currentTime = 0;
+                sfx.volume = 1.0;             // 想小聲一點就調 0.4 之類
+                sfx.play().catch(() => { });
+            }
+
+            // ✅ 成功：5 秒   ❌ 失敗：2.5 秒
+            const duration = ok ? 5000 : 4400;
+
+            setTimeout(() => {
+                overlay.classList.remove("show");
+                if (sfx) sfx.pause();
+            }, duration);
+        }
+        const exitBtn = document.getElementById("btnExitToMenu");
+        if (exitBtn) {
+            // 每次出結果先把按鈕藏起來、取消上一次的計時器
+            exitBtn.style.display = "none";
+            exitBtn.classList.remove("exit-visible");
+
+            if (exitBtnTimer) {
+                clearTimeout(exitBtnTimer);
+                exitBtnTimer = null;
+            }
+
+            // 5 秒後再顯示按鈕（並有淡入動畫）
+            exitBtnTimer = setTimeout(() => {
+                exitBtn.style.display = "block";   // 取消 display:none
+                exitBtn.classList.add("exit-visible");
+            }, 5000); // 5000ms = 5 秒
         }
     });
 
@@ -280,7 +411,41 @@
         // line 可能是 null/undefined，保險起見轉成整數
         challengeLine = (line ?? -1) | 0;
         updateDebugOriginalFromChallenge();
+        updatePreAlert();
     });
+
+    connection.on("ResumeSong", () => {
+        const player = document.getElementById("player");
+        if (player) {
+            player.play().catch(err => {
+                console.warn("ResumeSong play failed:", err);
+            });
+        }
+    });
+
+    //connection.on("updateContestant", (typed) => {
+
+    //    const ori = currentOriginalText || "";
+    //    const typedLength = typed.length;
+
+    //    // 前面 = 使用者已唱出的內容
+    //    const front = typed;
+
+    //    // 後面 = 原詞剩餘部分 → 全部補星號
+    //    const remainCount = Math.max(ori.length - typedLength, 0);
+    //    const stars = "★".repeat(remainCount);
+
+    //    // 合併
+    //    const display = front + stars;
+
+    //    // 顯示在大字 currentLine
+    //    safeText($("currentLine"), display);
+
+    //    // 星號遮罩要消失
+    //    const maskEl = $("challengeMask");
+    //    if (maskEl) maskEl.style.display = "none";
+    //});
+
 
     async function start() {
         try {
@@ -348,7 +513,8 @@
             updateDebugOriginalFromChallenge();
         },
 
-        setMatchMode: (mode, threshold) => started && connection.invoke("SetMatchMode", mode, threshold)
+        setMatchMode: (mode, threshold) => started && connection.invoke("SetMatchMode", mode, threshold),
+        resumeSong: () => started && connection.invoke("ResumeSong")
     };
 
 })();

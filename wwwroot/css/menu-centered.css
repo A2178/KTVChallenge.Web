@@ -1,5 +1,5 @@
 ﻿.page-title {
-    margin: 1.5rem 0 0.5rem;
+    margin: 0 0.5rem;
     text-align: center;
     font-size: 1.9rem;
     letter-spacing: .1rem;
@@ -64,45 +64,64 @@
     .back-link:hover {
         text-decoration: underline;
     }
-
+/* ===== 歌曲清單：垂直排列 ===== */
 .song-grid {
     max-width: 980px;
-    margin: .5rem auto 2rem;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 14px 16px;
+    margin: 1.2rem auto 2rem;
+    display: flex; /* 改成 flex，一直往下排 */
+    flex-direction: column;
+    gap: 14px;
     padding: 0 .8rem;
 }
 
-.song-tile {
-    border: 1px solid #ddd;
-    border-radius: 12px;
-    background: #fff;
-    padding: 14px;
-    text-align: center;
+/* 拷貝目錄 category-pill 的視覺風格到歌曲方塊 */
+.song-title {
+    display: flex;
+    flex-direction: column; /* 歌名在上，歌手在下 */
+    align-items: center;
+    justify-content: center;
+    gap: .3rem;
+    width: 100%;
+    padding: 16px 18px;
+    border-radius: 16px;
+    border: 2px solid #b65fcf;
+    background: #f7e9ff;
+    box-shadow: 0 2px 0 #d8b6e6 inset;
+    opacity: 0.85; /* 跟目錄一樣帶點透明感 */
+
     cursor: pointer;
-    transition: box-shadow .12s ease, transform .08s ease;
+    text-align: center;
+    transition: transform .08s ease, box-shadow .12s ease, background .12s ease;
 }
 
-    .song-tile:hover {
+    .song-title:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(0,0,0,.12);
+        background: #ffeefe;
     }
 
+    .song-title:active {
+        transform: translateY(0);
+        box-shadow: none;
+    }
+
+/* 內文字體大小保持 KTV 霸氣風格 */
 .song-name {
     font-weight: 700;
+    font-size: 36px;
     margin-bottom: .25rem;
 }
 
 .song-artist {
     color: #666;
-    font-size: .92rem;
+    font-size: 28px;
 }
 
 .empty-note {
     text-align: center;
-    color: #777;
-    margin-top: 1rem;
+    color: #fff;
+    margin-top: 1.5rem;
+    font-size: 1.2rem;
+    text-shadow: 0 0 6px rgba(0,0,0,.6);
 }
 .category-grid-2col {
     max-width: 980px;
@@ -121,6 +140,8 @@
     border: 2px solid #b65fcf;
     background: #f7e9ff;
     box-shadow: 0 2px 0 #d8b6e6 inset;
+    /*透明度*/
+    opacity: 0.85;
     font-size: 1.05rem;
     letter-spacing: .08rem;
     text-align: center;
@@ -169,6 +190,8 @@
     font-size: 1.05rem;
     letter-spacing: .08rem;
     cursor: pointer;
+    font-size: 20px;
+    font-weight: 600;
     text-align: center;
     transition: transform .08s ease, box-shadow .12s ease, background .12s ease;
 }
@@ -186,6 +209,7 @@
     /* 橫跨兩格（桌面版） */
     .category-pill.span-2 {
         grid-column: 1 / -1;
+        font-size:24px;
         font-weight: 700;
     }
 
@@ -219,16 +243,24 @@
 .host-background {
     background: url('/images/Hostbackground.jpg') no-repeat center center fixed;
     background-size: cover;
-    min-height: 100vh;
+    /* 內容區高度 = 整個視窗 - header 大約高度 */
+    min-height: calc(100vh - 56px);
+    /* 只在 host 這一層做置中，不動整個 body/layout */
+    display: flex;
+    justify-content: center; /* 水平置中 */
+    align-items: center; /* 垂直置中 */
 }
 
+/* 舞台本體盒子 */
 .stage-wrapper {
     width: 100%;
     max-width: 1200px;
-    margin-top: 1rem;
+    margin: 0 auto;
     padding: 1rem 2rem 3rem;
+
     color: #fff;
     text-shadow: 0 2px 4px rgba(0,0,0,.7);
+    text-align: center;       /* 標題 / 狀態 / 歌詞全部置中 */
 }
 
 .stage-title {
@@ -252,7 +284,7 @@
 
 /* 主歌詞行：大字 + 淡入動畫 */
 .lyric-main {
-    font-size: 2.6rem;
+    font-size: 5.2rem;
     font-weight: 700;
     letter-spacing: .15rem;
     margin: 1rem 0 .5rem;
@@ -265,7 +297,7 @@
 
 /* 遮罩星號（隱藏歌詞行） */
 .lyric-mask {
-    font-size: 2.6rem;
+    font-size: 5.2rem;
     font-weight: 700;
     letter-spacing: .3rem;
     margin-bottom: .2rem;
@@ -273,7 +305,7 @@
 
 /* 挑戰者唱出的歌詞 */
 .lyric-contestant {
-    margin-top: 1.2rem;
+    margin-top: 2.4rem;
     font-size: 1.6rem;
     font-weight: 600;
 }
@@ -281,7 +313,7 @@
 /* 判定結果 */
 .lyric-result {
     margin-top: .6rem;
-    font-size: 1.3rem;
+    font-size: 2.4rem;
 }
 
 /* 淡入效果，給歌詞用 */
@@ -301,3 +333,250 @@
         transform: translateY(0);
     }
 }
+
+/* 頂部列：套用 banner 圖片做背景 */
+.header-banner {
+    background: url('/images/header-banner.jpg') no-repeat left center;
+    /* ↑ 這個路徑換成你實際放 banner 的檔名 */
+    background-size: cover;
+    height: 120px; /* 視覺上看不夠高再調整，例如 90 或 100 */
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
+    color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,.3);
+}
+
+/* 左側：保留 banner 左邊圖樣區域（約 20% 或最少 300px） */
+.header-left {
+    flex: 0 0 20%;
+    min-width: 300px;
+}
+
+/* 中間口號文字 */
+.header-slogan {
+    flex: 1;
+    text-align: center;
+    font-size: 2.3rem;
+    font-weight: 700;
+    letter-spacing: .12rem;
+    text-shadow: 0 2px 4px rgba(0,0,0,.6);
+    padding: 0 .5rem;
+}
+
+/* 右側導覽列 */
+.header-nav {
+    display: flex;
+    gap: 1rem;
+    margin-left: auto;
+    font-size: 1rem;
+}
+
+    /* 導覽連結樣式 */
+    .header-nav a {
+        color: #fff;
+        text-decoration: none;
+        font-weight: 600;
+        padding: .25rem .5rem;
+        text-shadow: 0 1px 3px rgba(0,0,0,.7);
+        border-radius: 4px;
+        transition: background .15s ease, transform .08s ease;
+    }
+
+        .header-nav a:hover {
+            background: rgba(0,0,0,.25);
+            transform: translateY(-1px);
+        }
+
+        .header-nav a:active {
+            transform: translateY(0);
+        }
+
+.top-row {
+    height: 100px !important;
+    display: flex;
+    justify-content: flex-end; /* 讓右上角的 Menu/舞台/控制台 靠右 */
+    align-items: center;
+}
+
+/* ===== 挑戰前提醒圖（歌詞上方閃爍）===== */
+.pre-alert {
+    display: block;
+    margin: 0 auto; /* 水平置中 */
+    max-width: 400px; /* 看你圖大小，可以自行調整 */
+    opacity: 0; /* 預設完全透明 */
+    pointer-events: none; /* 不要擋到滑鼠事件 */
+    transform: translateY(0);
+    transition: opacity .4s ease; /* 顯示 / 隱藏都有淡入淡出 */
+}
+
+    /* 加上這個 class 就開始顯示＋閃爍 */
+    .pre-alert.show-alert {
+        opacity: 1;
+        animation: preAlertBlink .8s ease-in-out infinite;
+    }
+
+/* 閃爍動畫：亮–暗–亮 */
+@keyframes preAlertBlink {
+    0% {
+        opacity: 0.2;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+
+    100% {
+        opacity: 0.2;
+        transform: scale(1);
+    }
+}
+
+/* --------- 全畫面結果特效 --------- */
+.result-overlay {
+    position: fixed;
+    inset: 0; /* top/right/bottom/left = 0 */
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5000; /* 壓在所有東西之上（包含 header） */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .4s ease;
+}
+
+    .result-overlay.show {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+.result-gif {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* 充滿畫面 */
+}
+
+/* 右下角返回目錄按鈕（預設隱藏，由 JS 在挑戰結束時顯示） */
+.exit-button {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    padding: 8px 20px;
+    border-radius: 999px;
+    border: 1px solid #ccc;
+    background: #ffffff;
+    color: #333;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,.25);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px);
+    transition: opacity .35s ease, transform .35s ease;
+}
+
+/* 顯示時加這個 class */
+.exit-button.exit-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+
+    .exit-button:hover {
+        background: #f2f2f2;
+        transform: translateY(-2px);
+    }
+
+    .exit-button:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+    }
+
+#challengeMask {
+    position: absolute !important;
+    top: 60% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 100%;
+    text-align: center;
+}
+
+.menu-exit-button {
+    position: fixed;
+    right: 2rem;
+    bottom: 2rem;
+    z-index: 2000;
+    background: #ffffff;
+    color: #333;
+    border: none;
+    border-radius: 999px;
+    padding: 0.6rem 1.6rem;
+    font-size: 1rem;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .25);
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease, opacity .2s ease;
+    opacity: 0.95;
+}
+
+    .menu-exit-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+        opacity: 1;
+    }
+
+    .menu-exit-button:active {
+        transform: translateY(0);
+        box-shadow: 0 3px 8px rgba(0, 0, 0, .25);
+    }
+
+/* ======= 首頁封面 ======= */
+.hero-container {
+    width: 100%;
+    height: calc(100vh - 80px); /* 排除頂部 Lexus 大 banner */
+    background: url('/images/cover-bg.jpg') center center no-repeat;
+    background-size: cover; /* <== 把 cover 拉出來寫 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 2rem;
+}
+
+.hero-content {
+    background-color: rgba(0,0,0,0.45);
+    padding: 2.5rem 3rem;
+    border-radius: 1rem;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+}
+
+.hero-title {
+    font-size: 3rem;
+    font-weight: 900;
+    color: #fff;
+    text-shadow: 2px 2px 10px rgba(0,0,0,0.7);
+    margin-bottom: 2rem;
+}
+
+.hero-button {
+    font-size: 1.8rem;
+    padding: 1rem 3rem;
+    border-radius: 1rem;
+    border: none;
+    cursor: pointer;
+    background: #ffcc00;
+    color: #000;
+    font-weight: 800;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+    transition: all 0.25s ease;
+}
+
+    .hero-button:hover {
+        background: #ffe066;
+        transform: scale(1.05);
+    }

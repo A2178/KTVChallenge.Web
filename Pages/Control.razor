@@ -1,12 +1,36 @@
 @page "/control"
 @inject IJSRuntime JS
+@using Microsoft.AspNetCore.Components.Web
 
 <h1>控制台</h1>
 
 <!-- ① 挑戰與判定設定（放最上面） -->
 <h3>挑戰與判定設定</h3>
+
 <div class="challenge-box">
-    <label>本次挑戰行（1 起算）：</label>
+    <label>判定模式</label>
+    <select @bind="mode">
+        <option value="Loose">標準</option>
+        <option value="Fuzzy">可允許錯字</option>
+    </select>
+
+    @if (mode == "Fuzzy")
+    {
+        <label style="margin-left:.5rem;">可允許的錯字數</label>
+        <input type="number"
+               min="0"
+               max="10"
+               @bind="fuzzy"
+               style="width:80px" />
+    }
+
+    <button style="margin-left:.5rem;" @onclick="ApplyMode">
+        套用判定模式
+    </button>
+</div>
+
+<div class="challenge-box">
+    <label>本次挑戰行：</label>
     <input type="number"
            style="width:80px"
            @bind="challengeLine1Based" />
@@ -27,24 +51,7 @@
     }
 </div>
 
-<div class="challenge-box">
-    <label>判定模式</label>
-    <select @bind="mode">
-        <option value="Loose">標準</option>
-        <option value="Fuzzy">可允許錯字</option>
-    </select>
 
-    <label style="margin-left:.5rem;">可允許的錯字數</label>
-    <input type="number"
-           min="0"
-           max="10"
-           @bind="fuzzy"
-           style="width:80px" />
-
-    <button style="margin-left:.5rem;" @onclick="ApplyMode">
-        套用判定模式
-    </button>
-</div>
 
 <hr />
 
@@ -52,13 +59,17 @@
 <div class="controls">
     <button @onclick="StartSong">開始播放</button>
     <button @onclick="PauseSong">暫停</button>
+    <button @onclick="ResumeSong">挑戰結束後繼續播放</button>
 </div>
 
 <div class="challenge-box" style="margin-top:1rem;">
     <label>挑戰者唱出的歌詞：</label>
     <input @bind="typed"
-           placeholder="請逐字輸入"
-           style="width:260px;" />
+       @bind:event="oninput"
+       @onkeyup="OnTypedKeyUp" 
+       placeholder="請逐字輸入"
+       style="width:260px;" />
+
 
     <!-- 先把挑戰者唱詞顯示到舞台，不判定 -->
     <button style="margin-left:.5rem;" @onclick="PublishOnly">
@@ -109,18 +120,16 @@
     async Task PauseSong()
         => await JS.InvokeVoidAsync("GameHub.pause");
 
-    // ===== 顯示 / 判定 =====
     async Task PublishOnly()
     {
-        await JS.InvokeVoidAsync("GameHub.updateContestant", typed);    // 小畫面即時更新
-        await JS.InvokeVoidAsync("GameHub.publishContestant", typed);   // 舞台顯示
+        await JS.InvokeVoidAsync("GameHub.publishContestant", typed);   // 舞台顯示（+ 補星號）
     }
 
     async Task RevealAndJudge()
     {
-        await JS.InvokeVoidAsync("GameHub.updateContestant", typed);
-        await JS.InvokeVoidAsync("GameHub.evaluate", typed);
+        await JS.InvokeVoidAsync("GameHub.evaluate", typed);            // 判定 + 揭露原詞
     }
+
 
     // ===== 挑戰行 & 模式設定 =====
 
@@ -153,6 +162,20 @@
         StateHasChanged();
     }
 
+    // Enter 鍵綁定：在「挑戰者唱出的歌詞」輸入框按下 Enter，就等同點擊「顯示到舞台」
+    async Task OnTypedKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await PublishOnly();  // 這時 typed 已經是最新值
+        }
+    }
+
     async Task ApplyMode()
         => await JS.InvokeVoidAsync("GameHub.setMatchMode", mode, fuzzy);
+
+    async Task ResumeSong()
+    {
+        await JS.InvokeVoidAsync("GameHub.resumeSong");
+    }
 }

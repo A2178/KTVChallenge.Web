@@ -2,30 +2,37 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
+
 <div class="host-background">
     <div class="stage-wrapper">
-        <h1 class="stage-title">舞台畫面</h1>
+        <h1 class="stage-title"></h1>
 
         <div class="stage-player">
-            <audio id="player" controls></audio>
+            <audio id="player" controls style="display:none;"></audio>
         </div>
 
-        <div id="status" class="stage-status">
+        @* <div id="status" class="stage-status">
             等待選擇歌曲…
-        </div>
+        </div> *@
 
         <div class="lyric-panel">
+            <!-- ⚠ 提前提醒用的圖片（預設隱藏） -->
+            <img id="preAlert"
+                 class="pre-alert"
+                 src="/images/challenge-alert.png"
+                 alt="挑戰即將開始" />
+
             <!-- 遮罩星號（隱藏歌詞行） -->
             <div id="challengeMask" class="lyric-mask" style="display:none;">
                 ★★★★
             </div>
 
-            <!-- 主要滾動歌詞 -->
+            <!-- 主要大字區（進挑戰時要顯示參賽者唱詞） -->
             <div id="currentLine" class="lyric-main">
                 （尚未開始播放）
             </div>
 
-            <!-- 挑戰者唱出的歌詞 -->
+            <!-- 這個以後如果你不需要，也可以整個拿掉 -->
             <div id="contestantLine" class="lyric-contestant" style="display:none;">
             </div>
 
@@ -35,8 +42,30 @@
         </div>
     </div>
 </div>
+<!-- ★ 新增：挑戰成功 / 失敗的全畫面特效 -->
+<div id="resultOverlay" class="result-overlay">
+    <img id="resultGif" class="result-gif" src="" alt="Result Effect" />
+</div>
+
+<!-- ★ 成功 / 失敗音效（音量你可自己在 JS 裡調） -->
+<audio id="sfxSuccess" src="/media/sfx/success.mp3"></audio>
+<audio id="sfxFail" src="/media/sfx/fail.mp3"></audio>
+
+<button id="btnExitToMenu"
+        class="exit-button"
+        style="display:none;"
+        @onclick="NavigateToMenu">
+    返回目錄
+</button>
 
 @code {
+    void NavigateToMenu()
+        => Nav.NavigateTo("/Menu");
+}
+
+
+@code {
+
     protected override void OnParametersSet()
     {
         var uri = Nav.ToAbsoluteUri(Nav.Uri);
@@ -44,10 +73,8 @@
             .ParseQuery(uri.Query)
             .TryGetValue("songId", out var songId))
         {
-            // 先把 query string 裡的編碼解開
             var encoded = songId.ToString();
             var decoded = Uri.UnescapeDataString(encoded);
-
             KTVChallenge.Web.Hubs.GameSession.CurrentSong = decoded;
         }
         else
@@ -58,8 +85,8 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // 這裡就不用再呼叫 JS 了，保持空白即可
         await Task.CompletedTask;
     }
 }
+
 
