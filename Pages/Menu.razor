@@ -1,71 +1,92 @@
-﻿@page "/menu"
+﻿@page "/menu"               
+@page "/menu-solo"             
+@page "/menu-team"
 @page "/menu/{CategoryParam}"
+@page "/menu-team/{CategoryParam}"
+
 @inject NavigationManager Nav
 @inject IWebHostEnvironment Env
+@inject AppState AppState
 @using System.IO
 @using System.Linq
+@using KTVChallenge.Web.Hubs
 @using Microsoft.AspNetCore.Components
 
-<div class="menu-background">
+<div class="@MenuBackgroundClass">
 
-    <h1 class="page-title" style="color:white; text-shadow: 0 2px 4px rgba(0,0,0,.6); font-size:32px;">歌曲選單</h1>
+    <h1 class="page-title" style="color:white; text-shadow: 0 2px 4px rgba(0,0,0,.6); font-size:32px;">
+        ⠀
+    </h1>
 
-@if (string.IsNullOrEmpty(SelectedCategory))
-{
-    <!-- 目錄頁：第一個 & 第十個佔兩格 -->
-    <div class="category-grid-2col">
-        @for (int i = 0; i < FixedCategories.Count; i++)
-        {
-            var cat = FixedCategories[i];
-            var isSpan2 = (i == 0 || i == 9);            // 第 1、10 個佔兩格
-            var classes = isSpan2 ? "category-pill span-2" : "category-pill";
-
-            <button class="@classes" @onclick="() => GoCategory(cat)">
-                <span class="badge">@((i + 1).ToString())</span>
-                <span>@cat</span>
-            </button>
-        }
-    </div>
-}
-else
+    @if (string.IsNullOrEmpty(SelectedCategory))
     {
-        <!-- 類別歌曲清單 -->
-        <div class="category-header">
-            @* 這個舊的返回按鈕先拿掉 *@
-            @* <button class="back-link" @onclick="GoBack">← 返回目錄</button> *@
+        <!-- 目錄頁：依照模式決定要用哪一組目錄 -->
+        var categories = isTeamMode ? TeamCategories : SoloCategories;
 
-            <h1 style="text-shadow: 1px 1px 4px black; color:white;">@SelectedCategory</h1>
+        <div class="category-grid-2col">
+            @for (int i = 0; i < categories.Count; i++)
+            {
+                var cat = categories[i];
+
+                // 個人賽才有「第 1、10 個佔滿一行」的排版
+                bool isSpan2 = !isTeamMode && (i == 0 || i == 9);
+
+                // 團體賽 4 個全部吃滿整行
+                var classes = isTeamMode
+                ? "category-pill span-2"
+                : (isSpan2 ? "category-pill span-2" : "category-pill");
+
+                <button class="@classes" @onclick="() => GoCategory(cat)">
+                    <span class="badge">@((i + 1).ToString())</span>
+                    <span>@cat</span>
+                </button>
+            }
         </div>
-
-        @if (SongsByCategory.TryGetValue(SelectedCategory, out var songs) && songs.Any())
-        {
-            <div class="song-grid">
-                @foreach (var s in songs)
-                {
-                    <div class="song-title" title="@(s.HasLrc ? "含 LRC" : "無 LRC")"
-                         @onclick="() => PlaySong(s.Id)">
-                        <div class="song-name">@s.Name</div>
-                        <div class="song-artist">@s.Artist</div>
-                    </div>
-                }
-            </div>
-        }
-        else
-        {
-            <p class="empty-note">此分類暫無歌曲。</p>
-        }
-
-        <!-- ★ 新增：右下角「返回目錄」按鈕（只有進到類別時才會有） -->
-        <button class="menu-exit-button" @onclick="GoBack">
-            返回目錄
-        </button>
     }
+    else
+    {
+        <div class="stage-layout">
+            <!-- 上方霓虹框中的標題 -->
+            <div class="category-header stage-header">
+                <h1>@SelectedCategory</h1>
+            </div>
 
+            @if (SongsByCategory.TryGetValue(SelectedCategory, out var songs) && songs.Any())
+            {
+                <!-- 下方舞台區的歌曲方塊 -->
+                <div class="song-grid stage-song-grid">
+                    @foreach (var s in songs)
+                    {
+                        <div class="song-title"
+                             title="@(s.HasLrc ? "含 LRC" : "無 LRC")"
+                             @onclick="() => PlaySong(s.Id)">
+                            <div class="song-name">@s.Name</div>
+                            <div class="song-artist">@s.Artist</div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="empty-note">此分類暫無歌曲。</p>
+            }
+
+            <button class="menu-exit-button" @onclick="GoBack">
+                返回目錄
+            </button>
+        </div>
+    }
+</div>
 @code {
+    private string MenuBackgroundClass =>
+    string.IsNullOrEmpty(SelectedCategory)
+        ? "menu-background menu-bg-menu"    // 目錄一覧模式
+        : "menu-background menu-bg-stage";  // 進入某一分類（舞台模式）
+
     [Parameter] public string? CategoryParam { get; set; }
 
-    // ✅ 固定目錄（名稱要與 media/audio 的子資料夾一致）
-    private readonly List<string> FixedCategories = new()
+    // 個人賽目錄
+    private readonly List<string> SoloCategories = new()
     {
         "老歌回味・經典不敗金曲",
         "青春記憶・必唱青春旋律",
@@ -78,6 +99,18 @@ else
         "搖滾時刻・熱血沸騰能量爆發",
         "尾牙壓軸・幸福大合唱"
     };
+
+    // 團體賽目錄（4 個都要橫跨整行）
+    private readonly List<string> TeamCategories = new()
+    {
+        "《引擎狂熱動力隊》",
+        "《鋼色重生工藝隊》",
+        "《微笑金牌接待隊》",
+        "《真心好聲關懷隊》"
+    };
+
+    // 由網址決定現在是個人賽還是團體賽
+    private bool isTeamMode = false;
 
     private class SongItem
     {
@@ -92,14 +125,21 @@ else
 
     private string SelectedCategory = "";
 
+    // 目前這個頁面對應的「基底路徑」，用來組返回 / 進入某類別網址
+    private string BaseMenuPath => isTeamMode ? "/menu-team" : "/menu";
+
     protected override void OnParametersSet()
     {
-        // 第一次進來就掃描 media 目錄
-        if (SongsByCategory.Count == 0)
-        {
-            LoadAllSongsFromMedia();
-        }
+        // 1. 看網址決定是不是團體賽
+        isTeamMode = Nav.Uri.Contains("/menu-team", StringComparison.OrdinalIgnoreCase);
 
+        // 2. 寫進 AppState（給 Host 用）
+        AppState.IsTeamMode = isTeamMode;
+
+        // 3. 重新載入歌曲清單
+        LoadAllSongsFromMedia();
+
+        // 4. 解析當前類別
         if (!string.IsNullOrEmpty(CategoryParam))
         {
             var cat = Uri.UnescapeDataString(CategoryParam);
@@ -111,7 +151,21 @@ else
         {
             SelectedCategory = "";
         }
+
+        // 5. 類別名稱也寫進 AppState（舞台切背景要用）
+        AppState.SelectedCategory = SelectedCategory;
+
+        // 6. 如果是團體賽，且是「真心好聲關懷隊」就記錄 SelectedTeam
+        if (isTeamMode && SelectedCategory == "《真心好聲關懷隊》")
+        {
+            AppState.SelectedTeam = "《真心好聲關懷隊》";
+        }
+        else
+        {
+            AppState.SelectedTeam = null;
+        }
     }
+
 
     private void LoadAllSongsFromMedia()
     {
@@ -121,13 +175,15 @@ else
         var audioRoot = Path.Combine(contentRoot, "media", "audio");
         var lrcRoot = Path.Combine(contentRoot, "media", "lrc");
 
-        // 確保固定目錄即使沒有檔案也能點進去
-        foreach (var cat in FixedCategories)
+        // 把兩種目錄合在一起掃描
+        var allCategories = SoloCategories.Concat(TeamCategories).ToList();
+
+        foreach (var cat in allCategories)
             SongsByCategory[cat] = new List<SongItem>();
 
         if (!Directory.Exists(audioRoot)) return;
 
-        foreach (var cat in FixedCategories)
+        foreach (var cat in allCategories)
         {
             var catAudioDir = Path.Combine(audioRoot, cat);
             if (!Directory.Exists(catAudioDir)) continue;
@@ -138,19 +194,17 @@ else
             {
                 var slug = Path.GetFileNameWithoutExtension(mp3Path);   // 歌手_歌名
                 var (artist, title) = SplitArtistTitle(slug);
-
                 var lrcPath = Path.Combine(lrcRoot, cat, slug + ".lrc");
-                var item = new SongItem
+
+                list.Add(new SongItem
                 {
                     Id = $"{cat}/{slug}",
                     Name = title,
                     Artist = artist,
                     HasLrc = File.Exists(lrcPath)
-                };
-                list.Add(item);
+                });
             }
 
-            // 可自訂排序：歌手->歌名
             list = list
                 .OrderBy(s => s.Artist, StringComparer.CurrentCulture)
                 .ThenBy(s => s.Name, StringComparer.CurrentCulture)
@@ -160,20 +214,19 @@ else
         }
     }
 
+
     private static (string Artist, string Title) SplitArtistTitle(string slug)
     {
-        // 規範：{歌手}_{歌名}.mp3/.lrc
         var parts = slug.Split('_', 2);
         return parts.Length == 2 ? (parts[0], parts[1]) : ("", slug);
     }
 
     void GoCategory(string cat) =>
-        Nav.NavigateTo($"/menu/{Uri.EscapeDataString(cat)}");
+        Nav.NavigateTo($"{BaseMenuPath}/{Uri.EscapeDataString(cat)}");
 
-    void GoBack() => Nav.NavigateTo("/menu");
+    void GoBack() =>
+        Nav.NavigateTo(BaseMenuPath);
 
     void PlaySong(string songId) =>
         Nav.NavigateTo($"/host?songId={Uri.EscapeDataString(songId)}");
 }
-
-</div>

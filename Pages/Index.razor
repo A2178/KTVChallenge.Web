@@ -4,15 +4,19 @@
 <div class="hero-container">
 
     <div class="hero-content">
-        <h1 class="hero-title">12/3尾牙主題：中和音浪齊發・盛世樂章榮耀開唱」</h1>
+            <button class="hero-button" @onclick="GoSoloMenu" style="margin-right:50px;">
+                🎤 進入個人賽
+            </button>
 
-        <button class="hero-button" @onclick="GoMenu">
-            🎤 進入百萬大歌星
-        </button>
+            <button class="hero-button" @onclick="GoTeamMenu">
+                🎤 進入團體賽
+            </button>
+
     </div>
 
 </div>
 
 @code {
-    void GoMenu() => Nav.NavigateTo("/menu");
+    void GoSoloMenu() => Nav.NavigateTo("/menu");        // 個人賽
+    void GoTeamMenu() => Nav.NavigateTo("/menu-team");   // 團體賽（下一段會建立這條路由）
 }

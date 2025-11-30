@@ -1,9 +1,10 @@
 @page "/host"
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject AppState AppState
 
 
-<div class="host-background">
+<div class="host-background @(GetHostBgClass())">
     <div class="stage-wrapper">
         <h1 class="stage-title"></h1>
 
@@ -60,11 +61,33 @@
 
 @code {
     void NavigateToMenu()
-        => Nav.NavigateTo("/Menu");
+    {
+        // 預設回個人賽目錄
+        var path = "/menu";
+
+        // 如果目前模式是團體賽，就改回團體賽目錄
+        if (AppState.IsTeamMode)
+        {
+            path = "/menu-team";
+        }
+
+        Nav.NavigateTo(path);
+    }
 }
 
 
 @code {
+
+    private string GetHostBgClass()
+    {
+        // 只針對真心好聲關懷隊改背景，其餘用預設
+        if (AppState.IsTeamMode && AppState.SelectedTeam == "《真心好聲關懷隊》")
+        {
+            return "host-bg-caring";   // 特製背景
+        }
+
+        return ""; // 不加 class，用原本 host-background 的樣式
+    }
 
     protected override void OnParametersSet()
     {

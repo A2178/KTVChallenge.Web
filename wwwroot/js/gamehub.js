@@ -369,6 +369,16 @@
         }
     });
 
+    // 在 gamehub.js 裡，host 頁面共用
+    connection.on("MenuModeChanged", (mode) => {
+        // 這裡你可以決定要導到哪一個 URL
+        if (mode === "Solo") {
+            window.location.href = "/menu";          // 個人賽目錄
+        } else if (mode === "Team") {
+            window.location.href = "/menu-team";     // 團體賽目錄（或 querystring）
+        }
+    });
+
     // 舞台端：控制台要求進挑戰
     connection.on("RequestEnterChallenge", (idx) => {
         const i = idx | 0;
@@ -484,6 +494,7 @@
         pause: () => started && connection.invoke("Pause"),
 
         requestEnterChallenge: (idx) => started && connection.invoke("RequestEnterChallenge", idx | 0),
+        setMenuMode: (mode) => started && connection.invoke("SetMenuMode", mode),
 
         updateContestant: (text) => started && connection.invoke("UpdateContestant", text),
         publishContestant: (text) => started && connection.invoke("PublishContestant", text),

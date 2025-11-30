@@ -37,6 +37,12 @@ public class GameHub : Hub
             State.FuzzyThreshold);
     }
 
+    public async Task SetMenuMode(string mode)
+    {
+        // mode: "Solo" or "Team"
+        await Clients.All.SendAsync("MenuModeChanged", mode);
+    }
+
     public Task<string> GetCurrentSong()
     {
         // 這裡用你原本 StartSong 裡用的 GameSession.CurrentSong

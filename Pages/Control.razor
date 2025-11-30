@@ -4,6 +4,8 @@
 
 <h1>控制台</h1>
 
+
+
 <!-- ① 挑戰與判定設定（放最上面） -->
 <h3>挑戰與判定設定</h3>
 
@@ -104,6 +106,11 @@
 
     // 是否已經設定過挑戰行（沒有就不准按開始播放）
     bool hasChallengeConfigured = false;
+
+    async Task SetMenuModeAsync(string mode)
+    {
+        await JS.InvokeVoidAsync("GameHub.setMenuMode", mode);
+    }
 
     // ===== 播放控制 =====
     async Task StartSong()

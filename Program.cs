@@ -10,7 +10,7 @@ builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
-
+builder.Services.AddSingleton<KTVChallenge.Web.AppState>();
 
 var app = builder.Build();
 
