@@ -85,6 +85,10 @@
         {
             return "host-bg-caring";   // 特製背景
         }
+        else if (AppState.IsTeamMode && AppState.SelectedTeam == "《鋼色重生工藝隊》")
+        {
+            return "host-bg-steel";   // 特製背景
+        }
 
         return ""; // 不加 class，用原本 host-background 的樣式
     }

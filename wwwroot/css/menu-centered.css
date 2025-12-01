@@ -294,6 +294,11 @@
         /* 其餘設定沿用上面的，不用重複寫 */
     }
 
+    .host-background.host-bg-steel {
+        background-image: url('/images/Hostbackground-Steel.jpg'); /* 這張換成你的圖 */
+        /* 其餘設定沿用上面的，不用重複寫 */
+    }
+
 /* 舞台本體盒子 */
 .stage-wrapper {
     width: 100%;
