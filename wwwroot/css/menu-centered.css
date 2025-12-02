@@ -59,6 +59,7 @@
     gap: 14px;
     padding: 0 .8rem;
     margin-right: 136px;
+    max-height:120px;
 }
 
 /* 拷貝目錄 category-pill 的視覺風格到歌曲方塊 */
@@ -75,6 +76,7 @@
     background: #f7e9ff;
     box-shadow: 0 2px 0 #d8b6e6 inset;
     opacity: 0.85; /* 跟目錄一樣帶點透明感 */
+    max-height:86px;
 
     cursor: pointer;
     text-align: center;
@@ -155,12 +157,19 @@
 
 /* 兩欄網格：第一、九項要吃兩格 */
 .category-grid-2col {
-    max-width: 1400px;
+    max-width: 1800px;
     margin: 1.2rem auto 2rem;
     display: grid;
     grid-template-columns: repeat(2, minmax(280px, 1fr));
     gap: 14px 18px;
     padding: 0 .8rem;
+    /* ⬇⬇ 新增的兩行 ⬇⬇ */
+    /* 讓歌單區塊至少吃滿除掉 header 之後的可視高度 */
+    min-height: calc(100vh - 120px - 80px);
+    /*           ^^^^^^^^^  ^^^^^  ^^^^^
+                 視窗高     header  其他上方區塊(標題/間距)，大約估一下就好 */
+    /* 讓每一排歌單從上到下平均拉開，不會只黏在上面 */
+    align-content: space-between;
 }
 
 .category-pill {
@@ -169,8 +178,8 @@
     justify-content: center;
     gap: .6rem;
     width: 100%;
-    padding: 16px 18px;
-    border-radius: 16px;
+    padding: 28px 24px;
+    border-radius: 20px;
     border: 2px solid #b65fcf;
     background: #f7e9ff;
     box-shadow: 0 2px 0 #d8b6e6 inset;
@@ -296,6 +305,16 @@
 
     .host-background.host-bg-steel {
         background-image: url('/images/Hostbackground-Steel.jpg'); /* 這張換成你的圖 */
+        /* 其餘設定沿用上面的，不用重複寫 */
+    }
+
+    .host-background.host-bg-engine {
+        background-image: url('/images/Hostbackground-Engine.jpg'); /* 這張換成你的圖 */
+        /* 其餘設定沿用上面的，不用重複寫 */
+    }
+
+    .host-background.host-bg-smile {
+        background-image: url('/images/Hostbackground-Smile.jpg'); /* 這張換成你的圖 */
         /* 其餘設定沿用上面的，不用重複寫 */
     }
 
@@ -441,7 +460,7 @@
         }
 
 .top-row {
-    height: 100px !important;
+    height: 120px !important;
     display: flex;
     justify-content: flex-end; /* 讓右上角的 Menu/舞台/控制台 靠右 */
     align-items: center;
@@ -451,7 +470,7 @@
 .pre-alert {
     display: block;
     margin: 0 auto; /* 水平置中 */
-    max-width: 400px; /* 看你圖大小，可以自行調整 */
+    max-width: 800px; /* 看你圖大小，可以自行調整 */
     opacity: 0; /* 預設完全透明 */
     pointer-events: none; /* 不要擋到滑鼠事件 */
     transform: translateY(0);
@@ -585,7 +604,6 @@
 
 /* ======= 首頁封面 ======= */
 .hero-container {
-    padding-top: 22vh; /* UI 下移 */
     position: relative; /* 讓裡面的 hero-content 可以絕對定位 */
     width: 100%;
     height: calc(100vh - 80px); /* 排除頂部 Lexus 大 banner */
@@ -600,10 +618,9 @@
 
 /* 這個方塊就是你要塞在綠色框裡的內容 */
 .hero-content {
-    transform: translateY(18vh);
     position: absolute;
     left: 50%;
-    bottom: 16vh; /* 距離底部的高度，控制在空心區中央
+    bottom: 5vh; /* 距離底部的高度，控制在空心區中央
                                           可依畫面調整 10vh~18vh */
     transform: translateX(-50%); /* 水平置中 */
 
@@ -612,6 +629,13 @@
     border-radius: 0.8rem;
     box-shadow: 0 6px 15px rgba(0,0,0,0.35);
     text-align: center;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow-y: hidden;  封面頁真的很確定不要捲軸可以加這行 
 }
 
 .hero-title {
@@ -641,3 +665,21 @@
         background: #ffe066;
         transform: scale(1.05);
     }
+
+/* ===== 舞台倒數用遮罩 ===== */
+.countdown-overlay {
+    position: fixed;
+    inset: 80px 0 0 0; /* 避開上面的 Lexus header，如果要全螢幕就改成 inset:0; */
+    background: rgba(0,0,0,0.75);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.countdown-text {
+    color: #fff;
+    font-size: 4rem;
+    font-weight: 900;
+    text-shadow: 0 0 20px rgba(0,0,0,0.9);
+}

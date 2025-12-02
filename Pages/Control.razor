@@ -78,6 +78,17 @@
         顯示到舞台
     </button>
 
+    <audio id="countdownAudio"
+           src="/media/sfx/countdown.mp3"
+           preload="auto">
+    </audio>
+
+    <button type="button"
+            class="ctrl-btn big"
+            onclick="var a=document.getElementById('countdownAudio'); a.currentTime=0; a.play();">
+        倒數 4 秒（播放音效）
+    </button>
+
     <!-- 公布結果：判定 + 揭露原詞 -->
     <button style="margin-left:.5rem;" @onclick="RevealAndJudge">
         公布結果

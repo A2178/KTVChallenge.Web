@@ -29,6 +29,40 @@
     let currentOriginalText = "";
     // ✅ 新增：舞台目前是否在「挑戰模式中」
     let inChallenge = false;
+    let preAlertAudio = null;
+
+    function getPreAlertAudio() {
+        if (!preAlertAudio) {
+            preAlertAudio = document.getElementById("preAlertSound");
+            if (preAlertAudio) {
+                preAlertAudio.loop = true;   // 持續循環播放
+                preAlertAudio.volume = 1.0;  // 自行調整音量
+            }
+        }
+        return preAlertAudio;
+    }
+
+    function startPreAlertSound() {
+        const audio = getPreAlertAudio();
+        if (!audio) return;
+
+        if (audio.paused) {
+            audio.currentTime = 0;  // 每次從頭播放
+            audio.play().catch(err => {
+                console.warn("preAlert 音效播放失敗 (瀏覽器可能阻擋自動播放)：", err);
+            });
+        }
+    }
+
+    function stopPreAlertSound() {
+        const audio = getPreAlertAudio();
+        if (!audio) return;
+
+        if (!audio.paused) {
+            audio.pause();
+            audio.currentTime = 0;
+        }
+    }
 
     function updateDebugOriginalFromChallenge() {
         const dbg = document.getElementById("debugOriginal");
@@ -192,6 +226,7 @@
         // 尚未載入 LRC 或尚未設定挑戰行，直接關閉提醒
         if (!lrcReady || challengeLine < 0 || currentIdx < 0 || inChallenge) {
             alertEl.classList.remove("show-alert");
+            stopPreAlertSound();
             return;
         }
 
@@ -202,14 +237,17 @@
         // 避免負數，若挑戰行太前面就不提醒
         if (warnIndex < 0) {
             alertEl.classList.remove("show-alert");
+            stopPreAlertSound();
             return;
         }
 
         // 只要介於 warnIndex ~ (challengeLine-1) 之間就開始閃爍
         if (currentIdx >= warnIndex && currentIdx < challengeLine) {
             alertEl.classList.add("show-alert");
+            startPreAlertSound();
         } else {
             alertEl.classList.remove("show-alert");
+            stopPreAlertSound();
         }
     }
 

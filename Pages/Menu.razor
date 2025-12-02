@@ -37,7 +37,7 @@
                 : (isSpan2 ? "category-pill span-2" : "category-pill");
 
                 <button class="@classes" @onclick="() => GoCategory(cat)">
-                    <span class="badge">@((i + 1).ToString())</span>
+                    @* <span class="badge">@((i + 1).ToString())</span> *@
                     <span>@cat</span>
                 </button>
             }
@@ -163,6 +163,14 @@
         else if(isTeamMode && SelectedCategory == "《鋼色重生工藝隊》")
         {
             AppState.SelectedTeam = "《鋼色重生工藝隊》";
+        }
+        else if(isTeamMode && SelectedCategory == "《引擎狂熱動力隊》")
+        {
+            AppState.SelectedTeam = "《引擎狂熱動力隊》";
+        }
+        else if(isTeamMode && SelectedCategory == "《微笑金牌接待隊》")
+        {
+            AppState.SelectedTeam = "《微笑金牌接待隊》";
         }
         else
         {

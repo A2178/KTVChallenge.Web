@@ -22,6 +22,10 @@
                  class="pre-alert"
                  src="/images/challenge-alert.png"
                  alt="挑戰即將開始" />
+            <!-- 新增：提示音效，預先載入 -->
+            <audio id="preAlertSound" src="/media/sfx/prealert.mp3" preload="auto"></audio>
+            
+
 
             <!-- 遮罩星號（隱藏歌詞行） -->
             <div id="challengeMask" class="lyric-mask" style="display:none;">
@@ -88,6 +92,14 @@
         else if (AppState.IsTeamMode && AppState.SelectedTeam == "《鋼色重生工藝隊》")
         {
             return "host-bg-steel";   // 特製背景
+        }
+        else if( AppState.IsTeamMode && AppState.SelectedTeam == "《引擎狂熱動力隊》")
+        {
+            return "host-bg-engine";   // 特製背景
+        }
+        else if( AppState.IsTeamMode && AppState.SelectedTeam == "《微笑金牌接待隊》")
+        {
+            return "host-bg-smile";   // 特製背景
         }
 
         return ""; // 不加 class，用原本 host-background 的樣式
