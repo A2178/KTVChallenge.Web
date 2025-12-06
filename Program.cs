@@ -12,6 +12,8 @@ builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<KTVChallenge.Web.AppState>();
 
+
+
 var app = builder.Build();
 
 app.UseStaticFiles();

@@ -424,7 +424,7 @@
 .header-slogan {
     flex: 1;
     text-align: center;
-    font-size: 2.3rem;
+    font-size: 1.5rem;
     font-weight: 700;
     letter-spacing: .12rem;
     text-shadow: 0 2px 4px rgba(0,0,0,.6);
@@ -635,7 +635,7 @@ html, body {
     margin: 0;
     padding: 0;
     height: 100%;
-    overflow-y: hidden;  封面頁真的很確定不要捲軸可以加這行 
+    overflow-y: hidden; /*封面頁真的很確定不要捲軸可以加這行 */
 }
 
 .hero-title {
@@ -647,7 +647,7 @@ html, body {
 }
 
 /* 兩顆按鈕的共同樣式 */
-.hero-button {
+    .hero-button {
     font-size: 1.8rem;
     padding: 1rem 3rem;
     border-radius: 1rem;

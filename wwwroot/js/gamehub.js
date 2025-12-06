@@ -312,24 +312,26 @@
 
         if (!currentLineEl) return;
 
+        const typedText = typed || "";
+
         // 如果根本沒有原始歌詞，就直接秀輸入內容
         if (!ori) {
-            safeText(currentLineEl, typed || "");
+            safeText(currentLineEl, typedText);
             if (maskEl) maskEl.style.display = "none";
             return;
         }
-
-        const typedText = typed || "";
         const totalLen = ori.length;
-        const typedLen = typedText.length;
 
-        // 已揭露的部分 = 原詞前 typedLen 個字（超過就吃滿）
-        const revealCount = Math.min(typedLen, totalLen);
-        const front = ori.slice(0, revealCount);
+        // 以原詞長度為「最大顯示長度」，避免排版爆開
+        const revealLen = Math.min(typedText.length, totalLen);
 
-        // 剩餘幾個字就補幾個星號
-        const remainCount = Math.max(totalLen - revealCount, 0);
+        // ✅ 這裡改成用「挑戰者輸入的內容」，而不是 ori.slice(...)
+        const front = typedText.slice(0, revealLen);
+
+        // 剩下的位置用星號補滿，避免把後面還沒唱的歌詞爆雷給現場
+        const remainCount = Math.max(totalLen - revealLen, 0);
         const stars = "★".repeat(remainCount);
+
 
         const display = front + stars;
 
