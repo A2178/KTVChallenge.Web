@@ -7,3 +7,14 @@ obj/
 *.nupkg
 *.DS_Store
 *.zip
+# === media 設定 ===
+
+# 先忽略整個 media
+/media/*
+
+# 保留 demo 子資料夾（小型示範媒體）
+!/media/demo/
+!/media/demo/**
+
+# 可選：保留一份說明檔，告訴別人要把正式 media 放哪裡
+!/media/README.md
