@@ -28,7 +28,7 @@ function parseLrc(text) {
 
 function starMaskFor(text) {
     const len = [...text].length;
-    return '＊'.repeat(Math.max(1, len));
+    return '★'.repeat(Math.max(1, len));
 }
 
 window.LrcHelper = { parseLrc, starMaskFor };

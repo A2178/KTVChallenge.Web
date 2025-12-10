@@ -1,21 +1,25 @@
 using Microsoft.AspNetCore.SignalR;
-using System.Collections.Concurrent;
 using System.Text;
 
 namespace KTVChallenge.Web.Hubs;
 
-
 public class GameHub : Hub
 {
-    // ===== 全域狀態（單房間版本；之後要多房可改用 roomId 做 key） =====
+    // 單房版本的全域狀態
     private static readonly GameState State = new();
 
     // ===== 控制台：設定挑戰行 =====
-    public async Task SetChallengeLines(int[] lines)
+    // 單一挑戰行（0-based）
+    public async Task SetChallengeLine(int line)
     {
-        State.ChallengeLines = lines?.Distinct().OrderBy(x => x).ToArray() ?? Array.Empty<int>();
-        await Clients.All.SendAsync("ChallengeConfigUpdated", State.ChallengeLines, State.Mode.ToString(), State.FuzzyThreshold);
+        State.ChallengeLine = line;
+        await Clients.All.SendAsync(
+            "ChallengeConfigUpdated",
+            State.ChallengeLine,          // ? 傳單一 int
+            State.Mode.ToString(),
+            State.FuzzyThreshold);
     }
+
 
     // ===== 控制台：設定比對模式 =====
     public async Task SetMatchMode(string mode, int? fuzzyThreshold)
@@ -23,15 +27,50 @@ public class GameHub : Hub
         if (Enum.TryParse<MatchMode>(mode, ignoreCase: true, out var m))
             State.Mode = m;
 
-        if (fuzzyThreshold is >= 0 and <= 10) // 依你需求可調
+        if (fuzzyThreshold is >= 0 and <= 10)
             State.FuzzyThreshold = fuzzyThreshold.Value;
 
-        await Clients.All.SendAsync("ChallengeConfigUpdated", State.ChallengeLines, State.Mode.ToString(), State.FuzzyThreshold);
+        await Clients.All.SendAsync(
+            "ChallengeConfigUpdated",
+            State.ChallengeLine,          // ? 不再是陣列
+            State.Mode.ToString(),
+            State.FuzzyThreshold);
     }
 
-    // ===== 控制台：開始/暫停 =====
-    public async Task StartSong(string songId) =>
-        await Clients.All.SendAsync("SongStarted", songId);
+    public async Task SetMenuMode(string mode)
+    {
+        // mode: "Solo" or "Team"
+        await Clients.All.SendAsync("MenuModeChanged", mode);
+    }
+
+    public Task<string> GetCurrentSong()
+    {
+        // 這裡用你原本 StartSong 裡用的 GameSession.CurrentSong
+        return Task.FromResult(GameSession.CurrentSong ?? string.Empty);
+    }
+
+    public async Task ResumeSong()
+    {
+        // 如果你有分組，就改成 Clients.Group("host") 之類；
+        // 如果目前都是 broadcast，就先用 All 沒關係
+        await Clients.All.SendAsync("ResumeSong");
+    }
+
+
+
+    // ===== 控制台：開始 / 暫停 =====
+    // ? StartSong：廣播「目前歌曲」給所有人（包含舞台）
+    public async Task StartSong()
+    {
+        // ? 從 GameSession 取目前歌曲（由 Host 設定）
+        var songId = GameSession.CurrentSong;
+
+        if (!string.IsNullOrEmpty(songId))
+        {
+            await Clients.All.SendAsync("SongStarted", songId);
+        }
+        // 如果是空的，就什麼都不做（控制台點了沒歌就當作無效操作）
+    }
 
     public async Task Pause() =>
         await Clients.All.SendAsync("Paused");
@@ -41,19 +80,18 @@ public class GameHub : Hub
     {
         State.CurrentOriginal = originalText ?? string.Empty;
         State.CurrentIndex = lineIndex;
-        await Clients.All.SendAsync("EnterChallenge", lineIndex, State.CurrentOriginal); // ← 多帶原詞
+        await Clients.All.SendAsync("EnterChallenge", lineIndex, State.CurrentOriginal);
     }
 
-
-    // ===== 控制台：更新參賽者輸入（即時回饋到舞台）=====
+    // ===== 控制台：更新參賽者輸入 =====
     public async Task UpdateContestant(string text) =>
         await Clients.All.SendAsync("ContestantUpdated", text);
 
-    // ===== 控制台：請求判定（Server 端做比對，回傳結果）=====
+    // ===== 控制台：請求判定 =====
     public async Task Evaluate(string contestant)
     {
         bool ok = Judge(State.CurrentOriginal, contestant, State.Mode, State.FuzzyThreshold);
-        await Clients.All.SendAsync("ShowResult", ok, State.CurrentOriginal, contestant); // ← 多帶兩行
+        await Clients.All.SendAsync("ShowResult", ok, State.CurrentOriginal, contestant);
     }
 
     public async Task PublishContestant(string contestantText)
@@ -63,10 +101,8 @@ public class GameHub : Hub
 
     public async Task RequestEnterChallenge(int lineIndex)
     {
-        // 廣播給所有連線（舞台會負責處理並回呼 EnterChallenge）
         await Clients.All.SendAsync("RequestEnterChallenge", lineIndex);
     }
-
 
     // ====== 判定邏輯 ======
     public static bool Judge(string original, string contestant, MatchMode mode, int fuzzyThreshold)
@@ -80,22 +116,19 @@ public class GameHub : Hub
         if (mode == MatchMode.Loose)
             return string.Equals(o, c, StringComparison.Ordinal);
 
-        // 模糊：Levenshtein 距離 <= 門檻
         int d = Levenshtein(o, c);
         return d <= fuzzyThreshold;
     }
 
-    // 忽略空白、標點、全半形、大小寫
     private static string NormalizeLoose(string? s)
     {
         s ??= string.Empty;
-        s = s.Normalize(NormalizationForm.FormKC); // 全半形/結合字
+        s = s.Normalize(NormalizationForm.FormKC);
         var sb = new StringBuilder(s.Length);
         foreach (var ch in s)
         {
             if (char.IsLetterOrDigit(ch) || IsCjk(ch))
                 sb.Append(char.ToLowerInvariant(ch));
-            // 其他（空白、標點）全部丟掉
         }
         return sb.ToString();
     }
@@ -103,12 +136,11 @@ public class GameHub : Hub
     private static bool IsCjk(char ch)
     {
         var u = (int)ch;
-        return (u >= 0x4E00 && u <= 0x9FFF)   // 中日韓統一表意
-            || (u >= 0x3400 && u <= 0x4DBF)   // 擴展A
-            || (u >= 0xF900 && u <= 0xFAFF);  // 兼容表意
+        return (u >= 0x4E00 && u <= 0x9FFF)
+            || (u >= 0x3400 && u <= 0x4DBF)
+            || (u >= 0xF900 && u <= 0xFAFF);
     }
 
-    // 最簡 Levenshtein（足夠我們用）
     private static int Levenshtein(string a, string b)
     {
         int n = a.Length, m = b.Length;
@@ -135,9 +167,12 @@ public class GameHub : Hub
 
 public class GameState
 {
-    public int[] ChallengeLines { get; set; } = Array.Empty<int>();
+    // ? 單一挑戰行，0-based，-1 表示尚未設定
+    public int ChallengeLine { get; set; } = -1;
+
     public MatchMode Mode { get; set; } = MatchMode.Loose;
     public int FuzzyThreshold { get; set; } = 2;
+
     public string CurrentOriginal { get; set; } = "";
     public int CurrentIndex { get; set; } = -1;
 }

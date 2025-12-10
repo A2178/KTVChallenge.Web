@@ -1,102 +1,199 @@
 @page "/control"
 @inject IJSRuntime JS
+@using Microsoft.AspNetCore.Components.Web
 
 <h1>控制台</h1>
 
-<div class="controls">
-    <button @onclick="StartSong">開始播放</button>
-    <button @onclick="PauseSong">暫停</button>
-    <button @onclick="EnterChallenge">進入挑戰（行 @currentIndex）</button>
 
 
-    <div class="challenge-box">
-        <label>挑戰者唱出的歌詞：</label>
-        <input @bind="typed" placeholder="請逐字輸入" />
-
-        <!-- ① 先把挑戰者唱詞顯示到舞台，不判定 -->
-        <button @onclick="PublishOnly">顯示到舞台</button>
-
-        <!-- ② 公布結果：判定 + 揭露原詞 -->
-        <button @onclick="RevealAndJudge">公布結果</button>
-    </div>
-</div>
-
-<hr />
-
+<!-- ① 挑戰與判定設定（放最上面） -->
 <h3>挑戰與判定設定</h3>
-<div class="challenge-box">
-    <label>挑戰行（逗號分隔）</label>
-    <input @bind="linesText" placeholder="例如：3,6,10" style="width:200px" />
-    <button @onclick="ApplyLines">套用</button>
-    &nbsp;&nbsp;
-    <label>手動挑戰行</label>
-    <input type="number" style="width:80px" @bind="currentIndex" />
-    <button @onclick="EnterChallenge">進入挑戰（行 @currentIndex）</button>
-</div>
 
 <div class="challenge-box">
     <label>判定模式</label>
     <select @bind="mode">
-        <option>Strict</option>
-        <option selected>Loose</option>
-        <option>Fuzzy</option>
+        <option value="Loose">標準</option>
+        <option value="Fuzzy">可允許錯字</option>
     </select>
-    <label>模糊閾值</label>
-    <input type="number" min="0" max="10" @bind="fuzzy" style="width:80px" />
-    <button @onclick="ApplyMode">套用</button>
+
+    @if (mode == "Fuzzy")
+    {
+        <label style="margin-left:.5rem;">可允許的錯字數</label>
+        <input type="number"
+               min="0"
+               max="10"
+               @bind="fuzzy"
+               style="width:80px" />
+    }
+
+    <button style="margin-left:.5rem;" @onclick="ApplyMode">
+        套用判定模式
+    </button>
+</div>
+
+<div class="challenge-box">
+    <label>本次挑戰行：</label>
+    <input type="number"
+           style="width:80px"
+           @bind="challengeLine1Based" />
+
+    <button @onclick="ApplyChallengeSettings">設定本次挑戰行</button>
+
+    @if (hasChallengeConfigured && currentLineForHuman.HasValue)
+    {
+        <span style="margin-left:1rem;">
+            目前主挑戰行：第 @currentLineForHuman 行
+        </span>
+    }
+    else
+    {
+        <span style="margin-left:1rem; color:#c00;">
+            尚未設定本次挑戰行
+        </span>
+    }
+</div>
+
+
+
+<hr />
+
+<!-- ② 播放控制：開始播放前一定要先設定挑戰行 -->
+<div class="controls">
+    <button @onclick="StartSong">開始播放</button>
+    <button @onclick="PauseSong">暫停</button>
+    <button @onclick="ResumeSong">挑戰結束後繼續播放</button>
+</div>
+
+<div class="challenge-box" style="margin-top:1rem;">
+    <label>挑戰者唱出的歌詞：</label>
+    <input @bind="typed"
+       @bind:event="oninput"
+       @onkeyup="OnTypedKeyUp" 
+       placeholder="請逐字輸入"
+       style="width:260px;" />
+
+
+    <!-- 先把挑戰者唱詞顯示到舞台，不判定 -->
+    <button style="margin-left:.5rem;" @onclick="PublishOnly">
+        顯示到舞台
+    </button>
+
+    <audio id="countdownAudio"
+           src="/media/sfx/countdown.mp3"
+           preload="auto">
+    </audio>
+
+    <button type="button"
+            class="ctrl-btn big"
+            onclick="var a=document.getElementById('countdownAudio'); a.currentTime=0; a.play();">
+        倒數 4 秒（播放音效）
+    </button>
+
+    <!-- 公布結果：判定 + 揭露原詞 -->
+    <button style="margin-left:.5rem;" @onclick="RevealAndJudge">
+        公布結果
+    </button>
+</div>
+
+<hr />
+
+<h3>本次挑戰的歌詞</h3>
+<div id="debugOriginal"
+     style="padding:.5rem; background:#fafafa; border:1px solid #eee; border-radius:.5rem;">
+    （等待設定本次挑戰行…）
 </div>
 
 @code {
     string typed = "";
-    int currentIndex = 3;      // ← 會被 UI 綁定與 ApplyLines 更新
-    string linesText = "3";
+
+    // 使用者輸入用：本次挑戰行（1 起算）
+    int challengeLine1Based = 1;
+
+    // UI 顯示用：「目前主挑戰行：第 n 行」
+    int? currentLineForHuman = null;
+
     string mode = "Loose";
     int fuzzy = 2;
 
+    // 是否已經設定過挑戰行（沒有就不准按開始播放）
+    bool hasChallengeConfigured = false;
 
+    async Task SetMenuModeAsync(string mode)
+    {
+        await JS.InvokeVoidAsync("GameHub.setMenuMode", mode);
+    }
 
-    async Task StartSong() => await JS.InvokeVoidAsync("GameHub.startSong", "demo");
-    async Task PauseSong() => await JS.InvokeVoidAsync("GameHub.pause");
-    // ✅ 手動進挑戰時，一起帶原詞
-    async Task EnterChallenge()
-        => await JS.InvokeVoidAsync("GameHub.requestEnterChallenge", currentIndex);
+    // ===== 播放控制 =====
+    async Task StartSong()
+    {
+        if (!hasChallengeConfigured)
+        {
+            await JS.InvokeVoidAsync("alert", "請先設定本次挑戰行，再開始播放。");
+            return;
+        }
+
+        await JS.InvokeVoidAsync("GameHub.startSong");
+    }
+
+    async Task PauseSong()
+        => await JS.InvokeVoidAsync("GameHub.pause");
 
     async Task PublishOnly()
     {
-        await JS.InvokeVoidAsync("GameHub.updateContestant", typed);  // 小畫面即時更新
-        await JS.InvokeVoidAsync("GameHub.publishContestant", typed); // 舞台顯示
+        await JS.InvokeVoidAsync("GameHub.publishContestant", typed);   // 舞台顯示（+ 補星號）
     }
 
-
-    // 改成請 Server 判定
-    // ② 公布結果：判定 + 揭露原詞
     async Task RevealAndJudge()
     {
-        await JS.InvokeVoidAsync("GameHub.updateContestant", typed);
-        await JS.InvokeVoidAsync("GameHub.evaluate", typed);
+        await JS.InvokeVoidAsync("GameHub.evaluate", typed);            // 判定 + 揭露原詞
     }
 
-    async Task ApplyLines()
+
+    // ===== 挑戰行 & 模式設定 =====
+
+    /// <summary>
+    /// 將「1 起算」的挑戰行轉成 0 起算 index 傳給 JS / Server，
+    /// 並標記 hasChallengeConfigured = true。
+    /// </summary>
+    async Task ApplyChallengeSettings()
     {
-        var arr = linesText.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                           .Select(s => int.TryParse(s, out var x) ? x : -1)
-                           .Where(x => x >= 0)
-                           .Distinct().OrderBy(x => x).ToArray();
+        if (challengeLine1Based <= 0)
+        {
+            hasChallengeConfigured = false;
+            currentLineForHuman = null;
+            await JS.InvokeVoidAsync("alert", "請輸入一個大於 0 的挑戰行（1 起算）。");
+            StateHasChanged();
+            return;
+        }
 
-        await JS.InvokeVoidAsync("GameHub.setChallengeLines", arr);
+        // 1 起算 -> 0 起算（LRC / JS 內部用）
+        var zeroBased = challengeLine1Based - 1;
 
-        // ✅ 以輸入的第一個挑戰行更新手動挑戰行預設
-        if (arr.Length > 0) currentIndex = arr[0];
+        // 呼叫 JS：GameHub.setChallengeLine(lineIndex0Based)
+        await JS.InvokeVoidAsync("GameHub.setChallengeLine", zeroBased);
+
+        // UI 狀態更新
+        hasChallengeConfigured = true;
+        currentLineForHuman = challengeLine1Based;
+
+        // 下方「本次挑戰的歌詞」文字會由 JS 的 updateDebugOriginalFromChallenge 回填
         StateHasChanged();
     }
 
-    async Task ApplyMode()
+    // Enter 鍵綁定：在「挑戰者唱出的歌詞」輸入框按下 Enter，就等同點擊「顯示到舞台」
+    async Task OnTypedKeyUp(KeyboardEventArgs e)
     {
-        await JS.InvokeVoidAsync("GameHub.setMatchMode", mode, fuzzy);
+        if (e.Key == "Enter")
+        {
+            await PublishOnly();  // 這時 typed 已經是最新值
+        }
+    }
+
+    async Task ApplyMode()
+        => await JS.InvokeVoidAsync("GameHub.setMatchMode", mode, fuzzy);
+
+    async Task ResumeSong()
+    {
+        await JS.InvokeVoidAsync("GameHub.resumeSong");
     }
 }
-<hr />
-<h3>目前原詞（除錯）</h3>
-<div id="debugOriginal" style="padding:.5rem; background:#fafafa; border:1px solid #eee; border-radius:.5rem;">
-    （等待進入挑戰…）
-</div>

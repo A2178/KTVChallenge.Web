@@ -1,3 +1,22 @@
 @page "/"
-<h1>KTV Lyric Challenge</h1>
-<p>請從上方選擇 <a href="/host">舞台</a> 或 <a href="/control">控制台</a>。</p>
+@inject NavigationManager Nav
+
+<div class="hero-container">
+
+    <div class="hero-content">
+            <button class="hero-button" @onclick="GoSoloMenu" style="margin-right:50px;">
+                🎤 進入個人賽
+            </button>
+
+            <button class="hero-button" @onclick="GoTeamMenu">
+                🎤 進入團體賽
+            </button>
+
+    </div>
+
+</div>
+
+@code {
+    void GoSoloMenu() => Nav.NavigateTo("/menu");        // 個人賽
+    void GoTeamMenu() => Nav.NavigateTo("/menu-team");   // 團體賽（下一段會建立這條路由）
+}

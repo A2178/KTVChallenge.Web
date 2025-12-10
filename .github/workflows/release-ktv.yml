@@ -1,0 +1,71 @@
+name: Build & Release KTV App
+
+on:
+  # 觸發條件：當你 push 一個 tag，如 v1.0.0、v2025.01.01
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest   # 打 win-x64 self-contained 就用 Windows runner
+
+    env:
+      DOTNET_VERSION: '8.0.x'          # 如果你專案用 7.0 就改成 7.0.x
+      RUNTIME: 'win-x64'
+      CONFIGURATION: Release
+      PUBLISH_DIR: 'publish'
+      ZIP_NAME: 'KTVChallenge.Web-${{ github.ref_name }}.zip'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # 如果你有 solution 檔，就用它；只有單一專案就改成對應的 .csproj
+      - name: Restore
+        run: dotnet restore
+
+      - name: Publish self-contained app
+        shell: pwsh
+        run: |
+          dotnet publish .\KTVChallenge.Web.csproj `
+            -c $env:CONFIGURATION `
+            -r $env:RUNTIME `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeAllContentForSelfExtract=true `
+            -o $env:PUBLISH_DIR
+
+      - name: Create zip package
+        shell: pwsh
+        run: |
+          if (Test-Path $env:ZIP_NAME) { Remove-Item $env:ZIP_NAME }
+          Compress-Archive -Path "$env:PUBLISH_DIR\*" -DestinationPath $env:ZIP_NAME
+
+      # 建立 GitHub Release（用這次的 tag 當版本號）
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: "KTVChallenge.Web${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+
+      # 把 zip 丟到剛剛建立的 Release 底下
+      - name: Upload Release Asset (zip)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.ZIP_NAME }}
+          asset_name: ${{ env.ZIP_NAME }}
+          asset_content_type: application/zip

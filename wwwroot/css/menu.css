@@ -1,0 +1,92 @@
+﻿.page-title {
+    margin: 1rem;
+    font-size: 1.8rem;
+    text-align: center;
+}
+
+.menu-layout {
+    display: flex;
+    min-height: calc(100vh - 80px);
+}
+
+/* 左側目錄 */
+.sidebar {
+    position: fixed;
+    top: 80px; /* 頁首高度，如無頁首可改 0 */
+    left: 0;
+    width: 200px;
+    height: calc(100vh - 80px);
+    background-color: #f3f3f3;
+    padding: 1rem;
+    border-right: 1px solid #ddd;
+    overflow-y: auto;
+}
+
+    .sidebar h3 {
+        margin-top: 0;
+        font-size: 1.1rem;
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 0.3rem;
+    }
+
+    .sidebar ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .sidebar li {
+        padding: 0.5rem 0.8rem;
+        margin-bottom: 0.2rem;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+    }
+
+        .sidebar li:hover {
+            background-color: #e0f7ff;
+        }
+
+        .sidebar li.active {
+            background-color: #0288d1;
+            color: white;
+        }
+
+/* 右側歌曲內容區 */
+.content {
+    flex: 1;
+    margin-left: 220px;
+    padding: 1rem 2rem;
+}
+
+.song-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+}
+
+.song-title {
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    padding: 0.8rem;
+    background: white;
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+    .song-title:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+.song-name {
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.song-artist {
+    color: #666;
+    font-size: 0.9rem;
+}

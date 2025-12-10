@@ -1,22 +1,131 @@
 @page "/host"
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject AppState AppState
 
-<h1>舞台畫面</h1>
 
-<div id="status" class="badge">待命</div>
+<div class="host-background @(GetHostBgClass())">
+    <div class="stage-wrapper">
+        <h1 class="stage-title"></h1>
 
-<div class="lyrics">
-    <div id="currentLine" class="line highlight">（當前歌詞會顯示在這裡）</div>
-    <div id="challengeMask" class="line mask" style="display:none;">＊＊＊＊＊＊＊＊＊＊＊＊＊＊</div>
-    <div id="contestantLine" class="line typed" style="display:none;">（挑戰者唱出的歌詞）</div>
+        <div class="stage-player">
+            <audio id="player" controls style="display:none;"></audio>
+        </div>
+
+        @* <div id="status" class="stage-status">
+            等待選擇歌曲…
+        </div> *@
+
+        <div class="lyric-panel">
+            <!-- ⚠ 提前提醒用的圖片（預設隱藏） -->
+            <img id="preAlert"
+                 class="pre-alert"
+                 src="/images/challenge-alert.png"
+                 alt="挑戰即將開始" />
+            <!-- 新增：提示音效，預先載入 -->
+            <audio id="preAlertSound" src="/media/sfx/prealert.mp3" preload="auto"></audio>
+            
+
+
+            <!-- 遮罩星號（隱藏歌詞行） -->
+            <div id="challengeMask" class="lyric-mask" style="display:none;">
+                ★★★★
+            </div>
+
+            <!-- 主要大字區（進挑戰時要顯示參賽者唱詞） -->
+            <div id="currentLine" class="lyric-main">
+                （尚未開始播放）
+            </div>
+
+            <!-- 這個以後如果你不需要，也可以整個拿掉 -->
+            <div id="contestantLine" class="lyric-contestant" style="display:none;">
+            </div>
+
+            <!-- 判定結果 -->
+            <div id="result" class="lyric-result">
+            </div>
+        </div>
+    </div>
+</div>
+<!-- ★ 新增：挑戰成功 / 失敗的全畫面特效 -->
+<div id="resultOverlay" class="result-overlay">
+    <img id="resultGif" class="result-gif" src="" alt="Result Effect" />
 </div>
 
-<audio id="player" controls>
-    <source src="audio/demo.mp3" type="audio/mpeg">
-</audio>
+<!-- ★ 成功 / 失敗音效（音量你可自己在 JS 裡調） -->
+<audio id="sfxSuccess" src="/media/sfx/success.mp3"></audio>
+<audio id="sfxFail" src="/media/sfx/fail.mp3"></audio>
 
-<div id="result" class="result"></div>
+<button id="btnExitToMenu"
+        class="exit-button"
+        style="display:none;"
+        @onclick="NavigateToMenu">
+    返回目錄
+</button>
 
-<p class="hint">
-    已加入 <b>LRC 歌詞同步</b>：放置 <code>wwwroot/lrc/demo.lrc</code> 後，播放時會自動高亮當前行；
-    若當前行索引位於 <code>challengeLines</code> 設定，則會自動進入挑戰模式並暫停。
-</p>
+@code {
+    void NavigateToMenu()
+    {
+        // 預設回個人賽目錄
+        var path = "/menu";
+
+        // 如果目前模式是團體賽，就改回團體賽目錄
+        if (AppState.IsTeamMode)
+        {
+            path = "/menu-team";
+        }
+
+        Nav.NavigateTo(path);
+    }
+}
+
+
+@code {
+
+    private string GetHostBgClass()
+    {
+        // 只針對真心好聲關懷隊改背景，其餘用預設
+        if (AppState.IsTeamMode && AppState.SelectedTeam == "《真心好聲關懷隊》")
+        {
+            return "host-bg-caring";   // 特製背景
+        }
+        else if (AppState.IsTeamMode && AppState.SelectedTeam == "《鋼色重生工藝隊》")
+        {
+            return "host-bg-steel";   // 特製背景
+        }
+        else if( AppState.IsTeamMode && AppState.SelectedTeam == "《引擎狂熱動力隊》")
+        {
+            return "host-bg-engine";   // 特製背景
+        }
+        else if( AppState.IsTeamMode && AppState.SelectedTeam == "《微笑金牌接待隊》")
+        {
+            return "host-bg-smile";   // 特製背景
+        }
+
+        return ""; // 不加 class，用原本 host-background 的樣式
+    }
+
+    protected override void OnParametersSet()
+    {
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        if (Microsoft.AspNetCore.WebUtilities.QueryHelpers
+            .ParseQuery(uri.Query)
+            .TryGetValue("songId", out var songId))
+        {
+            var encoded = songId.ToString();
+            var decoded = Uri.UnescapeDataString(encoded);
+            KTVChallenge.Web.Hubs.GameSession.CurrentSong = decoded;
+        }
+        else
+        {
+            KTVChallenge.Web.Hubs.GameSession.CurrentSong = "";
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await Task.CompletedTask;
+    }
+}
+
+
