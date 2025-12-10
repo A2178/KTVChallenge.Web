@@ -1,9 +1,7 @@
 @page "/"
 @namespace KTVChallenge.Web.Pages
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
-@{
-    Layout = null;
-}
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -19,7 +17,10 @@
     </app>
 
     <script src="_framework/blazor.server.js"></script>
-    <script src="lib/microsoft/signalr/dist/browser/signalr.min.js"></script>   <!-- 本機版 SignalR：一定要在 gamehub.js 之前 -->
+
+    <!-- 本機版 SignalR（一定要在 gamehub.js 之前） -->
+    <script src="lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+
     <script src="js/helpers.js" asp-append-version="true"></script>
     <script src="js/gamehub.js" asp-append-version="true"></script>
 </body>
