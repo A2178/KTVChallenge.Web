@@ -1,21 +1,24 @@
-name: Build & Release KTVChallenge.Web
+name: Build & Attach Release Zip for KTVChallenge.Web
 
 on:
-  # 只要 push 一個以 v 開頭的 tag，就觸發
-  push:
-    tags:
-      - 'v*'
+  # 當你在 GitHub Releases 頁面按下「Publish release」時觸發
+  release:
+    types: [published]
+
+# 允許這個 workflow 對 release / contents 有寫入權限
+permissions:
+  contents: write
 
 jobs:
-  build-and-release:
+  build-and-attach:
     runs-on: windows-latest
 
     env:
-      DOTNET_VERSION: '8.0.x'      # 如果你專案是 .NET 7 就改 7.0.x
+      DOTNET_VERSION: '8.0.x'      # 你的專案是 .NET 8 就留著；如果是 7 就改 '7.0.x'
       RUNTIME: 'win-x64'
       CONFIGURATION: Release
       PUBLISH_DIR: 'publish'
-      ZIP_NAME: 'KTVChallenge.Web-${{ github.ref_name }}.zip'
+      ZIP_NAME: 'KTVChallenge.Web-${{ github.event.release.tag_name }}.zip'
 
     steps:
       - name: Checkout
@@ -26,11 +29,9 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      # 還原整個 solution
       - name: Restore
         run: dotnet restore ./KTVChallenge.Web.sln
 
-      # 發佈 self-contained 版到 ./publish 資料夾
       - name: Publish self-contained app
         shell: pwsh
         run: |
@@ -42,32 +43,16 @@ jobs:
             -p:IncludeAllContentForSelfExtract=true `
             -o $env:PUBLISH_DIR
 
-      # 把 publish 資料夾壓成 zip（內容會長得像你圖三）
       - name: Create zip package
         shell: pwsh
         run: |
           if (Test-Path $env:ZIP_NAME) { Remove-Item $env:ZIP_NAME }
           Compress-Archive -Path "$env:PUBLISH_DIR\*" -DestinationPath $env:ZIP_NAME
 
-      # 建立 Release（用這次的 tag 名稱）
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
+      # 直接把 zip 附加到「這次觸發的 Release」底下
+      - name: Upload zip to current release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ env.ZIP_NAME }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref_name }}
-          release_name: "KTVChallenge.Web ${{ github.ref_name }}"
-          draft: false
-          prerelease: false
-
-      # 把剛剛那個 zip 附加到 Release 底下
-      - name: Upload Release Asset (zip)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ env.ZIP_NAME }}
-          asset_name: ${{ env.ZIP_NAME }}
-          asset_content_type: application/zip
