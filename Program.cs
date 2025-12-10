@@ -25,12 +25,19 @@ var provider = new FileExtensionContentTypeProvider();
 provider.Mappings[".lrc"] = "text/plain";
 
 
-app.UseStaticFiles(new StaticFileOptions
+if (Directory.Exists(mediaRoot))
 {
-    FileProvider = new PhysicalFileProvider(mediaRoot),
-    RequestPath = "/media",
-    ContentTypeProvider = provider
-});
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(mediaRoot),
+        RequestPath = "/media"
+    });
+}
+else
+{
+    // 可選：寫一行 log，方便之後 debug
+    Console.WriteLine($"[Warning] media folder not found: {mediaRoot}");
+}
 
 // ② 提供歌單 API：掃描 media/audio 與 media/lrc
 app.MapGet("/api/songs", () =>
